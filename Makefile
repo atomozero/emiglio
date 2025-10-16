@@ -13,6 +13,7 @@ SRCS = \
 	src/data/BFSStorage.cpp \
 	src/exchange/BinanceAPI.cpp \
 	src/exchange/BinanceWebSocket.cpp \
+	src/exchange/WebSocketClient.cpp \
 	src/strategy/RecipeLoader.cpp \
 	src/strategy/Indicators.cpp \
 	src/strategy/SignalGenerator.cpp \
@@ -41,6 +42,7 @@ LIBS = \
 	network \
 	translation \
 	tracker \
+	columnlistview \
 	sqlite3 \
 	ssl \
 	crypto \

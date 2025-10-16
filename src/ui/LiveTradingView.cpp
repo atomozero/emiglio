@@ -422,16 +422,7 @@ void LiveTradingView::ConnectWebSocket() {
 
 	webSocket = std::make_unique<BinanceWebSocket>();
 
-	if (!webSocket->connect()) {
-		LOG_ERROR("Failed to connect WebSocket");
-		BAlert* alert = new BAlert("Error", "Failed to connect to WebSocket",
-		                           "OK", nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT);
-		alert->Go();
-		webSocket.reset();
-		return;
-	}
-
-	// Subscribe to ticker and trades
+	// Subscribe to streams BEFORE connecting
 	webSocket->subscribeTicker(currentSymbol,
 		[this](const TickerUpdate& update) {
 			this->UpdateTickerSafe(update);
@@ -441,6 +432,16 @@ void LiveTradingView::ConnectWebSocket() {
 		[this](const TradeUpdate& update) {
 			this->UpdateTradeSafe(update);
 		});
+
+	// Now connect with subscribed streams
+	if (!webSocket->connect()) {
+		LOG_ERROR("Failed to connect WebSocket");
+		BAlert* alert = new BAlert("Error", "Failed to connect to WebSocket",
+		                           "OK", nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT);
+		alert->Go();
+		webSocket.reset();
+		return;
+	}
 
 	isConnected = true;
 	connectionStatusLabel->SetText("Status: Connected");
