@@ -1,0 +1,134 @@
+{
+  "name": "RSI Scalping Bitcoin",
+  "version": "1.0",
+  "description": "Strategia scalping su BTC/USDT basata su RSI oversold/overbought con conferma volume",
+  "author": "Emiglio Team",
+  "created": "2025-10-12",
+
+  "market": {
+    "exchange": "binance",
+    "symbol": "BTC/USDT",
+    "timeframe": "5m"
+  },
+
+  "capital": {
+    "initial": 1000,
+    "position_size_percent": 10,
+    "max_open_positions": 3
+  },
+
+  "risk_management": {
+    "stop_loss_percent": 2.0,
+    "take_profit_percent": 5.0,
+    "trailing_stop": true,
+    "trailing_stop_percent": 1.5,
+    "max_daily_loss_percent": 5.0
+  },
+
+  "indicators": [
+    {
+      "name": "rsi",
+      "period": 14,
+      "overbought": 70,
+      "oversold": 30
+    },
+    {
+      "name": "ema",
+      "periods": [9, 21, 50]
+    },
+    {
+      "name": "volume_sma",
+      "period": 20
+    }
+  ],
+
+  "entry_conditions": {
+    "logic": "AND",
+    "rules": [
+      {
+        "indicator": "rsi",
+        "operator": "<",
+        "value": 30,
+        "description": "RSI in oversold (< 30)"
+      },
+      {
+        "indicator": "close",
+        "operator": ">",
+        "reference": "ema_50",
+        "description": "Prezzo sopra EMA 50 (trend rialzista)"
+      },
+      {
+        "indicator": "volume",
+        "operator": ">",
+        "reference": "volume_sma",
+        "multiplier": 1.5,
+        "description": "Volume superiore a media x1.5 (conferma movimento)"
+      }
+    ]
+  },
+
+  "exit_conditions": {
+    "logic": "OR",
+    "rules": [
+      {
+        "indicator": "rsi",
+        "operator": ">",
+        "value": 70,
+        "description": "RSI in overbought (prendi profitto)"
+      },
+      {
+        "type": "stop_loss",
+        "description": "Stop loss colpito"
+      },
+      {
+        "type": "take_profit",
+        "description": "Take profit colpito"
+      },
+      {
+        "type": "trailing_stop",
+        "description": "Trailing stop colpito"
+      }
+    ]
+  },
+
+  "ai_assistance": {
+    "enabled": true,
+    "provider": "gemini",
+    "features": [
+      {
+        "type": "sentiment_analysis",
+        "sources": ["news", "twitter"],
+        "symbols": ["BTC"],
+        "influence_weight": 0.2,
+        "description": "Analizza sentiment per confermare segnali"
+      },
+      {
+        "type": "price_prediction",
+        "horizon": "1h",
+        "confidence_threshold": 0.7,
+        "influence_weight": 0.15,
+        "description": "Predizione prezzo prossima ora"
+      },
+      {
+        "type": "anomaly_detection",
+        "alert_on_anomaly": true,
+        "description": "Alert su movimenti anomali"
+      }
+    ]
+  },
+
+  "notifications": {
+    "on_entry": true,
+    "on_exit": true,
+    "on_error": true,
+    "on_ai_alert": true,
+    "channels": ["ui", "log"]
+  },
+
+  "backtest_config": {
+    "start_date": "2024-01-01",
+    "end_date": "2025-10-01",
+    "commission": 0.001,
+    "slippage": 0.0005
+  }
+}

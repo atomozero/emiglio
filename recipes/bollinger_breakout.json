@@ -1,0 +1,48 @@
+{
+  "name": "Bollinger Bands Breakout",
+  "description": "Bollinger Bands breakout strategy. Buy when price crosses above upper band, sell when crosses below lower band.",
+  "market": {
+    "exchange": "binance",
+    "symbol": "BTCUSDT",
+    "timeframe": "1h"
+  },
+  "capital": {
+    "initial": 10000,
+    "position_size_percent": 20
+  },
+  "risk_management": {
+    "stop_loss_percent": 2.5,
+    "take_profit_percent": 6.0,
+    "max_daily_loss_percent": 8.0,
+    "max_open_positions": 1
+  },
+  "indicators": [
+    {
+      "name": "bollinger",
+      "period": 20,
+      "multiplier": 2.0
+    }
+  ],
+  "entry_conditions": {
+    "logic": "AND",
+    "rules": [
+      {
+        "indicator": "close",
+        "operator": ">",
+        "value": 0,
+        "compare_with": "bb_upper"
+      }
+    ]
+  },
+  "exit_conditions": {
+    "logic": "OR",
+    "rules": [
+      {
+        "indicator": "close",
+        "operator": "<",
+        "value": 0,
+        "compare_with": "bb_lower"
+      }
+    ]
+  }
+}

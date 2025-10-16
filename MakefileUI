@@ -1,0 +1,69 @@
+## Emiglio UI Makefile
+## Build Haiku native application with BeAPI
+
+NAME = Emiglio
+TYPE = APP
+APP_MIME_SIG = application/x-vnd.Emiglio
+
+SRCS = \
+	src/core/Application.cpp \
+	src/ui/MainWindow.cpp \
+	src/ui/BacktestView.cpp \
+	src/ui/DashboardView.cpp \
+	src/ui/TradesView.cpp \
+	src/ui/ChartsView.cpp \
+	src/ui/LiveTradingView.cpp \
+	src/ui/RecipeEditorView.cpp \
+	src/ui/SettingsView.cpp \
+	src/utils/Logger.cpp \
+	src/utils/JsonParser.cpp \
+	src/strategy/Indicators.cpp \
+	src/strategy/RecipeLoader.cpp \
+	src/strategy/SignalGenerator.cpp \
+	src/backtest/Portfolio.cpp \
+	src/backtest/BacktestSimulator.cpp \
+	src/backtest/PerformanceAnalyzer.cpp \
+	src/data/DataStorage.cpp \
+	src/exchange/BinanceAPI.cpp \
+	src/exchange/BinanceWebSocket.cpp \
+	src/paper/PaperPortfolio.cpp
+
+LIBS = \
+	be \
+	columnlistview \
+	sqlite3 \
+	ssl \
+	crypto \
+	stdc++
+
+SYSTEM_INCLUDE_PATHS = \
+	/boot/system/develop/headers \
+	/boot/system/develop/headers/private
+
+LOCAL_INCLUDE_PATHS = \
+	src/core \
+	src/data \
+	src/strategy \
+	src/backtest \
+	src/ui \
+	src/utils \
+	src/exchange \
+	src/paper \
+	external/rapidjson/include
+
+OPTIMIZE := FULL
+LOCALES = en it
+
+DEFINES = \
+	_BUILDING_EMIGLIO=1
+
+WARNINGS = ALL
+
+# Compiler flags
+COMPILER_FLAGS = -std=c++17 -Wall -Wextra -Wno-unused-parameter
+
+# Linker flags
+LINKER_FLAGS =
+
+## Include Haiku generic Makefile
+include $(BUILDHOME)/etc/makefile-engine

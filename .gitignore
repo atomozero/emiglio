@@ -1,0 +1,104 @@
+# Emiglio .gitignore
+
+# Build artifacts
+*.o
+*.d
+*.a
+*.so
+Emiglio
+*.xres
+
+# Build directories
+objects.*
+objects.*/
+.deps/
+
+# Test executables
+TestLogger
+TestConfig
+TestDataStorage
+TestBacktest
+TestBFSvsSQLite
+TestBinanceAPI
+TestComprehensive
+TestIndicators
+TestRecipeLoader
+TestSignalGenerator
+TestOptimizations
+TestFramework
+
+# Benchmark executables
+BenchmarkPhase3
+BenchmarkPhase4
+benchmark_suite
+simple_benchmark
+
+# Script executables
+test_components
+import_binance_data
+generate_test_data
+
+# Haiku specific
+objects.haiku-*
+objects.x86_64-*
+
+# Temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+.*.swp
+*~
+*.bak
+*.backup
+
+# Databases
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Config files with sensitive data
+config/exchanges.json
+config/ai_services.json
+
+# Data directories
+data/historical/*.db
+data/cache/*
+data/*.db-*
+
+# Test artifacts
+/tmp/emiglio_*
+/tmp/emilio_*
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-*
+*.code-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# External dependencies (downloaded separately)
+external/rapidjson/
+external/websocketpp/
+
+# Log files
+*.log.*
+emiglio.log
+emilio.log
+
+# Compiled Python files
+__pycache__/
+*.pyc
+*.pyo
+
+# Node modules (if any JS tools)
+node_modules/
+
+# Documentation temp files
+docs/.*.md.swp
+docs/*~

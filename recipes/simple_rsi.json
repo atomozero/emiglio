@@ -1,0 +1,48 @@
+{
+	"name": "Simple RSI Strategy",
+	"description": "Buy when RSI < 30, sell when RSI > 70",
+	"market": {
+		"exchange": "binance",
+		"symbol": "BTCUSDT",
+		"timeframe": "1h"
+	},
+	"capital": {
+		"initial": 10000.0,
+		"positionSizePercent": 100.0
+	},
+	"risk": {
+		"stopLossPercent": 5.0,
+		"takeProfitPercent": 10.0,
+		"maxDailyLossPercent": 10.0,
+		"maxOpenPositions": 1
+	},
+	"indicators": [
+		{
+			"name": "rsi",
+			"period": 14,
+			"params": {}
+		}
+	],
+	"entryConditions": {
+		"logic": "AND",
+		"rules": [
+			{
+				"indicator": "rsi",
+				"operator": "<",
+				"value": 30.0,
+				"compareWith": ""
+			}
+		]
+	},
+	"exitConditions": {
+		"logic": "OR",
+		"rules": [
+			{
+				"indicator": "rsi",
+				"operator": ">",
+				"value": 70.0,
+				"compareWith": ""
+			}
+		]
+	}
+}

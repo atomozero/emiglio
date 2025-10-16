@@ -1,0 +1,50 @@
+{
+  "name": "MACD Crossover Ethereum",
+  "description": "MACD crossover strategy for ETH/USDT. Enter when MACD crosses above signal line, exit when crosses below.",
+  "market": {
+    "exchange": "binance",
+    "symbol": "ETHUSDT",
+    "timeframe": "15m"
+  },
+  "capital": {
+    "initial": 5000,
+    "position_size_percent": 15
+  },
+  "risk_management": {
+    "stop_loss_percent": 3.0,
+    "take_profit_percent": 8.0,
+    "max_daily_loss_percent": 10.0,
+    "max_open_positions": 2
+  },
+  "indicators": [
+    {
+      "name": "macd",
+      "period": 26,
+      "fast_period": 12,
+      "slow_period": 26,
+      "signal_period": 9
+    }
+  ],
+  "entry_conditions": {
+    "logic": "AND",
+    "rules": [
+      {
+        "indicator": "macd",
+        "operator": "crosses_above",
+        "value": 0,
+        "compare_with": "macd_signal"
+      }
+    ]
+  },
+  "exit_conditions": {
+    "logic": "OR",
+    "rules": [
+      {
+        "indicator": "macd",
+        "operator": "crosses_below",
+        "value": 0,
+        "compare_with": "macd_signal"
+      }
+    ]
+  }
+}

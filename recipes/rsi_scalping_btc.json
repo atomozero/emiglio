@@ -1,0 +1,47 @@
+{
+  "name": "RSI Scalping Bitcoin",
+  "description": "Simple RSI-based scalping strategy for BTC/USDT on 5-minute timeframe. Buy when oversold (RSI < 30), sell when overbought (RSI > 70).",
+  "market": {
+    "exchange": "binance",
+    "symbol": "BTCUSDT",
+    "timeframe": "5m"
+  },
+  "capital": {
+    "initial": 1000,
+    "position_size_percent": 10
+  },
+  "risk_management": {
+    "stop_loss_percent": 2.0,
+    "take_profit_percent": 5.0,
+    "max_daily_loss_percent": 5.0,
+    "max_open_positions": 1
+  },
+  "indicators": [
+    {
+      "name": "rsi",
+      "period": 14,
+      "oversold": 30,
+      "overbought": 70
+    }
+  ],
+  "entry_conditions": {
+    "logic": "AND",
+    "rules": [
+      {
+        "indicator": "rsi",
+        "operator": "<",
+        "value": 30
+      }
+    ]
+  },
+  "exit_conditions": {
+    "logic": "OR",
+    "rules": [
+      {
+        "indicator": "rsi",
+        "operator": ">",
+        "value": 70
+      }
+    ]
+  }
+}

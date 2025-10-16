@@ -1,0 +1,30 @@
+// Emiglio.rdef
+// Resource definition for Haiku OS
+
+resource app_signature "application/x-vnd.Emiglio";
+
+resource app_flags B_MULTIPLE_LAUNCH | B_ARGV_ONLY;
+
+resource app_version {
+	major  = 1,
+	middle = 0,
+	minor  = 0,
+
+	variety = B_APPV_ALPHA,
+	internal = 0,
+
+	short_info = "Emiglio",
+	long_info  = "Native cryptocurrency trading bot for Haiku OS with AI integration"
+};
+
+resource vector_icon {
+	$"6E6369660D0500020106023C55B83A20A4BF28113D98BB49F3364A392C00"
+	$"00FFC3FFFCB20005FF020106023B55B73C20443E2813BD98BB4A363E4A39"
+	$"2CFFFFFFE4FFFDB2000500020106023C55B83A20A4BF28113D98BB49F336"
+	$"4A392C0000FF020106023B55B73C20443E2813BD98BB4A363E4A392CFFFF"
+	$"FFFFFFFF0005FF0201060244CE4D3E0000BF00004600004A2B474C8A00FF"
+	$"FF4BFFFFFF000A06220A0001001001178400040A010101000A0201011001"
+	$"178400040A030101000A04010110011784000401"
+};
+
+// App icons, signature and flags
