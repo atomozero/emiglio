@@ -538,4 +538,186 @@ std::vector<double> Indicators::cci(const std::vector<Candle>& candles, int peri
 	return result;
 }
 
+// Convenience methods that return single values (last value from calculation)
+
+double Indicators::calculateSMA(const std::vector<double>& data, int period) {
+	if (data.size() < static_cast<size_t>(period)) {
+		return NAN;
+	}
+
+	std::vector<double> result = sma(data, period);
+	return result.empty() ? NAN : result.back();
+}
+
+double Indicators::calculateEMA(const std::vector<double>& data, int period) {
+	if (data.size() < static_cast<size_t>(period)) {
+		return NAN;
+	}
+
+	std::vector<double> result = ema(data, period);
+	return result.empty() ? NAN : result.back();
+}
+
+double Indicators::calculateRSI(const std::vector<double>& data, int period) {
+	if (data.size() < static_cast<size_t>(period + 1)) {
+		return NAN;
+	}
+
+	std::vector<double> result = rsi(data, period);
+	return result.empty() ? NAN : result.back();
+}
+
+double Indicators::calculateStdDev(const std::vector<double>& data) {
+	if (data.empty()) {
+		return NAN;
+	}
+
+	// Calculate mean
+	double sum = 0.0;
+	for (double val : data) {
+		sum += val;
+	}
+	double mean = sum / data.size();
+
+	// Calculate variance
+	double variance = 0.0;
+	for (double val : data) {
+		double diff = val - mean;
+		variance += diff * diff;
+	}
+	variance /= data.size();
+
+	return std::sqrt(variance);
+}
+
+double Indicators::calculateATR(const std::vector<double>& highs,
+                                const std::vector<double>& lows,
+                                const std::vector<double>& closes,
+                                int period) {
+	if (highs.size() != lows.size() || highs.size() != closes.size()) {
+		return NAN;
+	}
+
+	if (highs.size() < static_cast<size_t>(period + 1)) {
+		return NAN;
+	}
+
+	// Convert to candles
+	std::vector<Candle> candles;
+	for (size_t i = 0; i < highs.size(); i++) {
+		Candle c;
+		c.high = highs[i];
+		c.low = lows[i];
+		c.close = closes[i];
+		c.open = closes[i]; // Not used in ATR calculation
+		c.volume = 0;
+		c.timestamp = 0;
+		candles.push_back(c);
+	}
+
+	std::vector<double> result = atr(candles, period);
+	return result.empty() ? NAN : result.back();
+}
+
+double Indicators::calculateStochastic(const std::vector<double>& highs,
+                                       const std::vector<double>& lows,
+                                       const std::vector<double>& closes,
+                                       int period) {
+	if (highs.size() != lows.size() || highs.size() != closes.size()) {
+		return NAN;
+	}
+
+	if (highs.size() < static_cast<size_t>(period)) {
+		return NAN;
+	}
+
+	// Convert to candles
+	std::vector<Candle> candles;
+	for (size_t i = 0; i < highs.size(); i++) {
+		Candle c;
+		c.high = highs[i];
+		c.low = lows[i];
+		c.close = closes[i];
+		c.open = closes[i]; // Not used in Stochastic calculation
+		c.volume = 0;
+		c.timestamp = 0;
+		candles.push_back(c);
+	}
+
+	StochasticResult result = stochastic(candles, period, 3);
+	return result.k.empty() ? NAN : result.k.back();
+}
+
+double Indicators::calculateOBV(const std::vector<double>& closes,
+                                const std::vector<double>& volumes) {
+	if (closes.size() != volumes.size() || closes.empty()) {
+		return NAN;
+	}
+
+	// Convert to candles
+	std::vector<Candle> candles;
+	for (size_t i = 0; i < closes.size(); i++) {
+		Candle c;
+		c.close = closes[i];
+		c.volume = volumes[i];
+		c.high = closes[i];
+		c.low = closes[i];
+		c.open = closes[i];
+		c.timestamp = 0;
+		candles.push_back(c);
+	}
+
+	std::vector<double> result = obv(candles);
+	return result.empty() ? 0.0 : result.back();
+}
+
+Indicators::MACDValue Indicators::calculateMACD(const std::vector<double>& data,
+                                                int fastPeriod,
+                                                int slowPeriod,
+                                                int signalPeriod) {
+	MACDValue singleResult;
+	singleResult.macdLine = NAN;
+	singleResult.signalLine = NAN;
+	singleResult.histogram = NAN;
+
+	if (data.size() < static_cast<size_t>(slowPeriod)) {
+		return singleResult;
+	}
+
+	// Use the vector-based macd function
+	auto vectorResult = macd(data, fastPeriod, slowPeriod, signalPeriod);
+
+	if (!vectorResult.macdLine.empty() && !vectorResult.signalLine.empty() && !vectorResult.histogram.empty()) {
+		singleResult.macdLine = vectorResult.macdLine.back();
+		singleResult.signalLine = vectorResult.signalLine.back();
+		singleResult.histogram = vectorResult.histogram.back();
+	}
+
+	return singleResult;
+}
+
+Indicators::BollingerBandsValue Indicators::calculateBollingerBands(const std::vector<double>& data,
+                                                                     int period,
+                                                                     double stdDevMultiplier) {
+	BollingerBandsValue singleResult;
+	singleResult.upper = NAN;
+	singleResult.middle = NAN;
+	singleResult.lower = NAN;
+
+	if (data.size() < static_cast<size_t>(period)) {
+		return singleResult;
+	}
+
+	// Use the vector-based bollingerBands function
+	auto vectorResult = bollingerBands(data, period, stdDevMultiplier);
+
+	if (!vectorResult.upper.empty() && !vectorResult.middle.empty() && !vectorResult.lower.empty()) {
+		singleResult.upper = vectorResult.upper.back();
+		singleResult.middle = vectorResult.middle.back();
+		singleResult.lower = vectorResult.lower.back();
+	}
+
+	return singleResult;
+}
+
 } // namespace Emiglio

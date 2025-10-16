@@ -1,6 +1,7 @@
 #include "WebSocketClient.h"
 #include "../utils/Logger.h"
 
+#include <cerrno>
 #include <cstring>
 #include <cstdlib>
 #include <unistd.h>
@@ -14,6 +15,9 @@
 #include <openssl/evp.h>
 #include <sstream>
 #include <random>
+#include <thread>
+#include <mutex>
+#include <atomic>
 
 namespace Emiglio {
 
@@ -122,6 +126,7 @@ struct WebSocketClient::Impl {
     ConnectCallback connectCallback;
 
     std::mutex writeMutex;
+    std::vector<uint8_t> frameBuffer; // Buffer for partial frames
 
     Impl() : sockfd(-1), ssl_ctx(nullptr), ssl(nullptr), connected(false), shouldStop(false) {
         // Initialize OpenSSL
@@ -337,11 +342,11 @@ struct WebSocketClient::Impl {
     }
 
     void reader_loop() {
-        std::vector<uint8_t> buffer;
-        buffer.resize(8192);
+        std::vector<uint8_t> readBuffer;
+        readBuffer.resize(8192);
 
         while (!shouldStop && connected) {
-            int received = read_data(reinterpret_cast<char*>(buffer.data()), buffer.size());
+            int received = read_data(reinterpret_cast<char*>(readBuffer.data()), readBuffer.size());
 
             if (received <= 0) {
                 if (!shouldStop) {
@@ -351,42 +356,54 @@ struct WebSocketClient::Impl {
                 break;
             }
 
-            // Parse WebSocket frames
-            size_t offset = 0;
-            while (offset < static_cast<size_t>(received)) {
-                if (offset + 2 > static_cast<size_t>(received)) break;
+            // Append new data to frame buffer
+            frameBuffer.insert(frameBuffer.end(), readBuffer.begin(), readBuffer.begin() + received);
 
-                uint8_t byte1 = buffer[offset++];
-                uint8_t byte2 = buffer[offset++];
+            // Parse WebSocket frames from buffer
+            size_t offset = 0;
+            while (offset + 2 <= frameBuffer.size()) {
+                uint8_t byte1 = frameBuffer[offset];
+                uint8_t byte2 = frameBuffer[offset + 1];
 
                 bool fin = (byte1 & 0x80) != 0;
                 Opcode opcode = static_cast<Opcode>(byte1 & 0x0F);
                 bool masked = (byte2 & 0x80) != 0;
                 uint64_t payload_len = byte2 & 0x7F;
 
+                size_t header_size = 2;
+
                 // Extended payload length
                 if (payload_len == 126) {
-                    if (offset + 2 > static_cast<size_t>(received)) break;
-                    payload_len = (buffer[offset] << 8) | buffer[offset + 1];
-                    offset += 2;
+                    if (offset + 4 > frameBuffer.size()) break; // Need more data
+                    payload_len = (frameBuffer[offset + 2] << 8) | frameBuffer[offset + 3];
+                    header_size += 2;
                 } else if (payload_len == 127) {
-                    if (offset + 8 > static_cast<size_t>(received)) break;
+                    if (offset + 10 > frameBuffer.size()) break; // Need more data
                     payload_len = 0;
                     for (int i = 0; i < 8; i++) {
-                        payload_len = (payload_len << 8) | buffer[offset++];
+                        payload_len = (payload_len << 8) | frameBuffer[offset + 2 + i];
                     }
+                    header_size += 8;
                 }
 
                 // Skip mask (server should not mask)
                 if (masked) {
-                    offset += 4;
+                    header_size += 4;
                 }
 
-                // Read payload
-                if (offset + payload_len > static_cast<size_t>(received)) break;
+                // Check if we have the complete frame
+                if (offset + header_size + payload_len > frameBuffer.size()) {
+                    break; // Need more data
+                }
 
-                std::string payload(reinterpret_cast<char*>(&buffer[offset]), payload_len);
-                offset += payload_len;
+                // Extract payload
+                std::string payload(
+                    reinterpret_cast<char*>(&frameBuffer[offset + header_size]),
+                    payload_len
+                );
+
+                // Move offset past this frame
+                offset += header_size + payload_len;
 
                 // Handle frame
                 if (opcode == Opcode::TEXT && messageCallback) {
@@ -394,11 +411,24 @@ struct WebSocketClient::Impl {
                 } else if (opcode == Opcode::CLOSE) {
                     LOG_INFO("WebSocket close frame received");
                     connected = false;
-                    break;
+                    // Remove processed data and exit
+                    frameBuffer.erase(frameBuffer.begin(), frameBuffer.begin() + offset);
+                    return;
                 } else if (opcode == Opcode::PING) {
                     // Respond with PONG
                     send_frame(Opcode::PONG, payload);
                 }
+            }
+
+            // Remove processed data from buffer
+            if (offset > 0) {
+                frameBuffer.erase(frameBuffer.begin(), frameBuffer.begin() + offset);
+            }
+
+            // Prevent buffer from growing indefinitely if we have garbage data
+            if (frameBuffer.size() > 1024 * 1024) { // 1MB limit
+                LOG_ERROR("Frame buffer exceeded 1MB, clearing (possible corrupt data)");
+                frameBuffer.clear();
             }
         }
     }

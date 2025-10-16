@@ -96,6 +96,41 @@ public:
 
 	// Helper: Mean/average
 	static double mean(const std::vector<double>& data, int start, int period);
+
+	// Convenience methods that return single values (last value from calculation)
+	static double calculateSMA(const std::vector<double>& data, int period);
+	static double calculateEMA(const std::vector<double>& data, int period);
+	static double calculateRSI(const std::vector<double>& data, int period = 14);
+	static double calculateStdDev(const std::vector<double>& data);
+	static double calculateATR(const std::vector<double>& highs,
+	                           const std::vector<double>& lows,
+	                           const std::vector<double>& closes,
+	                           int period = 14);
+	static double calculateStochastic(const std::vector<double>& highs,
+	                                  const std::vector<double>& lows,
+	                                  const std::vector<double>& closes,
+	                                  int period = 14);
+	static double calculateOBV(const std::vector<double>& closes,
+	                           const std::vector<double>& volumes);
+
+	struct MACDValue {
+		double macdLine;
+		double signalLine;
+		double histogram;
+	};
+	static MACDValue calculateMACD(const std::vector<double>& data,
+	                               int fastPeriod = 12,
+	                               int slowPeriod = 26,
+	                               int signalPeriod = 9);
+
+	struct BollingerBandsValue {
+		double upper;
+		double middle;
+		double lower;
+	};
+	static BollingerBandsValue calculateBollingerBands(const std::vector<double>& data,
+	                                                    int period = 20,
+	                                                    double stdDevMultiplier = 2.0);
 };
 
 } // namespace Emiglio

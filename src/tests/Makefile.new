@@ -1,0 +1,109 @@
+# New Test Suite Makefile for Emiglio
+# Build new unit tests on Haiku OS
+
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Wextra -fPIC -I.. -I../../external/rapidjson/include -I/boot/system/develop/headers/private/netservices2
+LDFLAGS = -lpthread -lstdc++
+LIBS = be network sqlite3 ssl crypto
+
+# New test executables
+NEW_TESTS = test_websocket test_indicators test_recipe_loader
+
+# Source directories
+UTILS_DIR = ../utils
+STRATEGY_DIR = ../strategy
+EXCHANGE_DIR = ../exchange
+
+.PHONY: all clean run
+
+all: $(NEW_TESTS)
+
+# WebSocket test
+test_websocket: test_websocket.o $(EXCHANGE_DIR)/WebSocketClient.o $(UTILS_DIR)/Logger.o
+	$(CXX) -o $@ $^ $(LDFLAGS) $(addprefix -l,$(LIBS))
+
+test_websocket.o: test_websocket.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Indicators test
+test_indicators: test_indicators.o $(STRATEGY_DIR)/Indicators.o $(UTILS_DIR)/Logger.o
+	$(CXX) -o $@ $^ $(LDFLAGS) $(addprefix -l,$(LIBS))
+
+test_indicators.o: test_indicators.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# RecipeLoader test
+test_recipe_loader: test_recipe_loader.o $(STRATEGY_DIR)/RecipeLoader.o $(UTILS_DIR)/JsonParser.o $(UTILS_DIR)/Logger.o
+	$(CXX) -o $@ $^ $(LDFLAGS) $(addprefix -l,$(LIBS))
+
+test_recipe_loader.o: test_recipe_loader.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Build dependencies with -fPIC
+$(EXCHANGE_DIR)/WebSocketClient.o: $(EXCHANGE_DIR)/WebSocketClient.cpp
+	$(CXX) $(CXXFLAGS) -I/boot/system/develop/headers/private/netservices -c $< -o $@
+
+$(STRATEGY_DIR)/Indicators.o: $(STRATEGY_DIR)/Indicators.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(STRATEGY_DIR)/RecipeLoader.o: $(STRATEGY_DIR)/RecipeLoader.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(UTILS_DIR)/Logger.o: $(UTILS_DIR)/Logger.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(UTILS_DIR)/JsonParser.o: $(UTILS_DIR)/JsonParser.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Run all tests
+run: all
+	@echo "==================================="
+	@echo "Running New Test Suite"
+	@echo "==================================="
+	@echo ""
+	@echo "--- WebSocket Tests ---"
+	./test_websocket
+	@echo ""
+	@echo "--- Indicator Tests ---"
+	./test_indicators
+	@echo ""
+	@echo "--- RecipeLoader Tests ---"
+	./test_recipe_loader
+	@echo ""
+	@echo "==================================="
+	@echo "All tests completed!"
+	@echo "==================================="
+
+# Run individual tests
+websocket: test_websocket
+	@echo "Running WebSocket tests..."
+	./test_websocket
+
+indicators: test_indicators
+	@echo "Running Indicator tests..."
+	./test_indicators
+
+recipe: test_recipe_loader
+	@echo "Running RecipeLoader tests..."
+	./test_recipe_loader
+
+# Clean
+clean:
+	rm -f $(NEW_TESTS) *.o
+	rm -f /tmp/test_*.json
+
+# Help
+help:
+	@echo "Emiglio New Test Suite"
+	@echo ""
+	@echo "Targets:"
+	@echo "  all         - Build all tests"
+	@echo "  run         - Build and run all tests"
+	@echo "  websocket   - Build and run WebSocket tests"
+	@echo "  indicators  - Build and run Indicator tests"
+	@echo "  recipe      - Build and run RecipeLoader tests"
+	@echo "  clean       - Remove build artifacts"
+	@echo ""
+	@echo "Usage:"
+	@echo "  make -f Makefile.new all"
+	@echo "  make -f Makefile.new run"
