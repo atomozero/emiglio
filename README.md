@@ -16,6 +16,8 @@
 - **🎨 Native UI** - Beautiful Haiku OS interface with BeAPI integration
 - **📉 10 Technical Indicators** - SMA, EMA, RSI, MACD, Bollinger Bands, and more
 - **🔍 Performance Analytics** - Comprehensive metrics including Sharpe ratio, max drawdown, win rate
+- **🔌 WebSocket Streaming** - Real-time price updates and trade data via native WebSocket client
+- **📄 Paper Trading** - Test strategies with live data without risking real money
 
 ## 🚀 Quick Start
 
@@ -43,8 +45,9 @@ make -f MakefileUI
 
 1. **Download Data**: Open the "Trades/Chart" tab, select a currency pair (e.g., BTC + USDT), and data will download automatically
 2. **View Charts**: Explore real-time candlestick charts with indicators
-3. **Run Backtest**: Go to "Backtest" tab, select a recipe, configure parameters, and click "Run Backtest"
-4. **Analyze Results**: View detailed performance metrics, trade history, and equity curves
+3. **Test Live Data**: Go to "Live Trading" tab and click "Connect" to stream real-time prices from Binance
+4. **Run Backtest**: Go to "Backtest" tab, select a recipe, configure parameters, and click "Run Backtest"
+5. **Analyze Results**: View detailed performance metrics, trade history, and equity curves
 
 ## 📱 Interface Overview
 
@@ -71,6 +74,14 @@ make -f MakefileUI
 - Load and validate existing strategies
 - Visual inspection of indicators and conditions
 - Delete and manage recipes
+
+### Live Trading
+- Real-time WebSocket connection to Binance
+- Live price updates and trade streaming
+- Paper trading with virtual $10,000 portfolio
+- Interactive order placement (BUY/SELL)
+- Position tracking with live P&L
+- Multi-currency support (BTC, ETH, BNB, SOL, XRP, ADA)
 
 ### Settings
 - System configuration (coming soon)
@@ -104,12 +115,54 @@ Built with modern C++17 and native Haiku APIs:
 
 - **[Quick Start Guide](docs/user/QUICK_START.md)** - Get up and running in 5 minutes
 - **[Features](docs/project/FEATURES.md)** - Complete feature catalog
+- **[WebSocket Implementation](docs/WEBSOCKET.md)** - Real-time streaming architecture and usage
 - **[Architecture](docs/developer/ARCHITECTURE.md)** - Technical design overview
 - **[Performance](docs/developer/PERFORMANCE.md)** - Optimization details and benchmarks
 - **[Changelog](docs/project/CHANGELOG.md)** - Development history
 - **[Roadmap](docs/project/ROADMAP.md)** - Future plans
 
 Full documentation index: [docs/INDEX.md](docs/INDEX.md)
+
+### Testing WebSocket Connection
+
+To test the real-time WebSocket streaming:
+
+1. **Build and run Emiglio**
+```bash
+make -f MakefileUI
+./objects.x86_64-cc13-release/Emiglio
+```
+
+2. **Navigate to Live Trading tab**
+   - Click on the "Live Trading" button in the tab bar
+
+3. **Connect to Binance**
+   - Click the "Connect" button
+   - Status should change to "Status: Connected"
+
+4. **Verify real-time data**
+   - Watch the price update in real-time
+   - See live trades appearing in the trades list
+   - Each trade shows: time, side (BUY/SELL), price, quantity, total, spread, and delay
+
+5. **Test paper trading**
+   - Enter quantity (e.g., 0.001 BTC)
+   - Select BUY or SELL
+   - Click "Place Order"
+   - Confirm the paper trade
+   - See your position in the positions table with live P&L updates
+
+6. **Check logs for diagnostics**
+```bash
+# Look for these success messages:
+[INFO] Connecting to Binance WebSocket...
+[INFO] Subscribed to ticker stream: btcusdt@ticker
+[INFO] Subscribed to trade stream: btcusdt@trade
+[INFO] WebSocket handshake successful
+[INFO] WebSocket connected successfully
+```
+
+For detailed technical information about the WebSocket implementation, see [docs/WEBSOCKET.md](docs/WEBSOCKET.md).
 
 ## 🛠️ Development
 
