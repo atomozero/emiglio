@@ -77,7 +77,13 @@ void DashboardView::BuildLayout() {
 	subtitleView->SetFont(&subtitleFont);
 	subtitleView->SetHighColor(100, 100, 100);
 
-	// Portfolio section - make it more prominent
+	// Portfolio section - SIMULATED DATA (Paper Trading)
+	BStringView* simulatedWarning = new BStringView("", "[SIMULATED - NOT REAL MONEY]");
+	BFont warningFont(be_bold_font);
+	warningFont.SetSize(11);
+	simulatedWarning->SetFont(&warningFont);
+	simulatedWarning->SetHighColor(150, 100, 0); // Orange warning color
+
 	totalCapitalLabel = new BStringView("", "Total Capital: $0.00");
 	availableCashLabel = new BStringView("", "Available Cash: $0.00");
 	investedLabel = new BStringView("", "Invested: $0.00");
@@ -90,22 +96,37 @@ void DashboardView::BuildLayout() {
 	availableCashLabel->SetFont(&labelFont);
 	investedLabel->SetFont(&labelFont);
 
+	// Style simulated data with gray color
+	totalCapitalLabel->SetHighColor(80, 80, 80);
+	availableCashLabel->SetHighColor(80, 80, 80);
+	investedLabel->SetHighColor(80, 80, 80);
+
 	BFont pnlFont(be_bold_font);
 	pnlFont.SetSize(15);
 	totalPnLLabel->SetFont(&pnlFont);
 	totalPnLPercentLabel->SetFont(&pnlFont);
 
 	BBox* portfolioBox = new BBox("portfolio_box");
-	portfolioBox->SetLabel("Paper Trading Portfolio");
+	portfolioBox->SetLabel("Paper Trading Portfolio (SIMULATED)");
 
-	BLayoutBuilder::Group<>(portfolioBox, B_VERTICAL, B_USE_SMALL_SPACING)
-		.SetInsets(B_USE_DEFAULT_SPACING)
+	// Set a lighter background to indicate simulation
+	BView* portfolioContent = new BView("portfolio_content", B_WILL_DRAW);
+	portfolioContent->SetViewColor(245, 245, 240); // Light beige for simulation
+
+	BLayoutBuilder::Group<>(portfolioContent, B_VERTICAL, B_USE_SMALL_SPACING)
+		.SetInsets(B_USE_SMALL_SPACING)
+		.Add(simulatedWarning)
+		.AddStrut(B_USE_SMALL_SPACING)
 		.Add(totalCapitalLabel)
 		.Add(availableCashLabel)
 		.Add(investedLabel)
 		.AddStrut(B_USE_SMALL_SPACING * 2)
 		.Add(totalPnLLabel)
 		.Add(totalPnLPercentLabel)
+		.End();
+
+	BLayoutBuilder::Group<>(portfolioBox, B_VERTICAL, 0)
+		.Add(portfolioContent)
 		.End();
 
 	// System stats section - simpler layout
@@ -129,7 +150,13 @@ void DashboardView::BuildLayout() {
 		.Add(candlesCountLabel)
 		.End();
 
-	// Binance Portfolio section - with column list view
+	// Binance Portfolio section - REAL DATA from live exchange
+	BStringView* realDataLabel = new BStringView("", "[LIVE - REAL MONEY]");
+	BFont realFont(be_bold_font);
+	realFont.SetSize(11);
+	realDataLabel->SetFont(&realFont);
+	realDataLabel->SetHighColor(0, 120, 0); // Dark green for real data
+
 	binanceStatusLabel = new BStringView("", "Status: Not connected");
 	BFont statusFont(be_bold_font);
 	statusFont.SetSize(13);
@@ -139,6 +166,7 @@ void DashboardView::BuildLayout() {
 	BFont valueFont(be_plain_font);
 	valueFont.SetSize(12);
 	binanceTotalValueLabel->SetFont(&valueFont);
+	binanceTotalValueLabel->SetHighColor(0, 100, 0); // Green for real values
 
 	// Create column list view for balances
 	binanceBalancesView = new BColumnListView("binance_balances", B_WILL_DRAW, B_FANCY_BORDER, true);
@@ -155,10 +183,16 @@ void DashboardView::BuildLayout() {
 	refreshBinanceButton = new BButton("Refresh Binance Portfolio", new BMessage(MSG_REFRESH_BINANCE));
 
 	BBox* binanceBox = new BBox("binance_box");
-	binanceBox->SetLabel("Binance Live Portfolio");
+	binanceBox->SetLabel("Binance Live Portfolio (REAL)");
 
-	BLayoutBuilder::Group<>(binanceBox, B_VERTICAL, B_USE_SMALL_SPACING)
-		.SetInsets(B_USE_DEFAULT_SPACING)
+	// Set a light green background to indicate real data
+	BView* binanceContent = new BView("binance_content", B_WILL_DRAW);
+	binanceContent->SetViewColor(240, 250, 240); // Very light green for real data
+
+	BLayoutBuilder::Group<>(binanceContent, B_VERTICAL, B_USE_SMALL_SPACING)
+		.SetInsets(B_USE_SMALL_SPACING)
+		.Add(realDataLabel)
+		.AddStrut(B_USE_SMALL_SPACING)
 		.AddGroup(B_HORIZONTAL)
 			.Add(binanceStatusLabel)
 			.AddGlue()
@@ -166,6 +200,10 @@ void DashboardView::BuildLayout() {
 		.End()
 		.Add(binanceBalancesScroll)
 		.Add(refreshBinanceButton)
+		.End();
+
+	BLayoutBuilder::Group<>(binanceBox, B_VERTICAL, 0)
+		.Add(binanceContent)
 		.End();
 
 	// Recent backtests section
