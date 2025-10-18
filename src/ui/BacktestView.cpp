@@ -620,9 +620,10 @@ void BacktestView::RunBacktest() {
 
 			time_t currentStart = startTime;
 			int totalChunks = 0;
-			int emptyChunks = 0;
+			int consecutiveEmptyChunks = 0;
 
-			while (currentStart < endTime && emptyChunks < 3) {  // Max 3 consecutive empty chunks
+			// Download all data in the requested range, no limits on empty chunks
+			while (currentStart < endTime) {
 				std::vector<Candle> chunk = api.getCandles(
 					symbol,
 					recipe.market.timeframe,
@@ -634,14 +635,20 @@ void BacktestView::RunBacktest() {
 				totalChunks++;
 
 				if (chunk.empty()) {
-					emptyChunks++;
-					// Move forward by a reasonable amount (1000 candles worth)
+					consecutiveEmptyChunks++;
+					// Move forward by 1000 candles worth to skip gaps
 					currentStart += (1000 * timeframeSec);
-					LOG_INFO("Empty chunk received, moving forward...");
+					LOG_INFO("Empty chunk #" + std::to_string(consecutiveEmptyChunks) +
+					         " received, continuing to search...");
+
+					// Update progress even for empty chunks
+					double progress = 15.0 + (30.0 * (double)(currentStart - startTime) / (endTime - startTime));
+					std::string statusMsg = "Searching... (" + std::to_string(candles.size()) + " candles found)";
+					progressBar->Update(progress, statusMsg.c_str());
 					continue;
 				}
 
-				emptyChunks = 0; // Reset empty counter
+				consecutiveEmptyChunks = 0; // Reset empty counter
 
 				// Save to database
 				storage.insertCandles(chunk);
