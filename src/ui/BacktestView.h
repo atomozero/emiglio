@@ -36,7 +36,10 @@ enum {
 	MSG_BACKTEST_COMPLETE = 'btcp',
 	MSG_TRADE_SELECTED = 'trds',
 	MSG_BASE_SELECTED = 'bass',
-	MSG_QUOTE_SELECTED = 'qots'
+	MSG_QUOTE_SELECTED = 'qots',
+	MSG_START_DATE_CLICKED = 'stdc',
+	MSG_END_DATE_CLICKED = 'endc',
+	MSG_PERIOD_SELECTED = 'prds'
 };
 
 // Custom string field with background color
@@ -82,30 +85,18 @@ public:
 	virtual void SelectionChanged() override;
 };
 
-// Custom text view that opens date picker when clicked
-class DateTextView : public BTextView {
+// Custom button that opens a date picker when clicked and displays the selected date
+class DateButton : public BButton {
 public:
-	DateTextView(BRect frame, const char* name, BRect textRect, uint32 resizingMode, uint32 flags);
-	virtual ~DateTextView();
-
-	virtual void MouseDown(BPoint where) override;
-	virtual void KeyDown(const char* bytes, int32 numBytes) override;
-	void SetParentControl(BTextControl* parent) { parentControl = parent; }
-
-private:
-	BTextControl* parentControl;
-};
-
-// Custom text control that opens a date picker when clicked
-class DateTextControl : public BTextControl {
-public:
-	DateTextControl(const char* name, const char* label, const char* text);
-	virtual ~DateTextControl();
+	DateButton(const char* name, const char* date);
+	virtual ~DateButton();
 
 	void OpenDatePicker();
+	void SetDate(const char* date);
+	const char* GetDate() const { return dateString.c_str(); }
 
 private:
-	DateTextView* dateTextView;
+	std::string dateString;
 };
 
 // Backtest view - run backtests and view results
@@ -143,8 +134,10 @@ private:
 	BPopUpMenu* baseAssetMenu;
 	BMenuField* quoteAssetField;
 	BPopUpMenu* quoteAssetMenu;
-	DateTextControl* startDateControl;
-	DateTextControl* endDateControl;
+	BMenuField* periodField;
+	BPopUpMenu* periodMenu;
+	DateButton* startDateButton;
+	DateButton* endDateButton;
 	BTextControl* initialCapitalControl;
 	BTextControl* commissionControl;
 	BTextControl* slippageControl;

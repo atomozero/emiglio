@@ -39,73 +39,28 @@ void TradesColumnListView::SelectionChanged() {
 	messenger.SendMessage(&msg);
 }
 
-// DateTextView implementation
-DateTextView::DateTextView(BRect frame, const char* name, BRect textRect,
-                           uint32 resizingMode, uint32 flags)
-	: BTextView(frame, name, textRect, resizingMode, flags)
-	, parentControl(nullptr)
+// DateButton implementation
+DateButton::DateButton(const char* name, const char* date)
+	: BButton(name, date, new BMessage(name[0] == 's' ? MSG_START_DATE_CLICKED : MSG_END_DATE_CLICKED))
+	, dateString(date)
 {
-	// Prevent user interaction
-	MakeEditable(false);
-	MakeSelectable(false);
-
-	// Set alignment and wrapping to prevent text overflow
-	SetAlignment(B_ALIGN_LEFT);
-	SetWordWrap(false);
 }
 
-DateTextView::~DateTextView() {
+DateButton::~DateButton() {
 }
 
-void DateTextView::MouseDown(BPoint where) {
-	// Open date picker when clicked
-	if (parentControl) {
-		DateTextControl* dateControl = dynamic_cast<DateTextControl*>(parentControl);
-		if (dateControl) {
-			dateControl->OpenDatePicker();
-		}
-	}
-}
-
-void DateTextView::KeyDown(const char* bytes, int32 numBytes) {
-	// Ignore all keyboard input - dates can only be selected via calendar
-}
-
-// DateTextControl implementation
-DateTextControl::DateTextControl(const char* name, const char* label, const char* text)
-	: BTextControl(name, label, text, nullptr)
-	, dateTextView(nullptr)
-{
-	// Replace the default text view with our custom one
-	BTextView* oldTextView = TextView();
-	if (oldTextView) {
-		BRect frame = oldTextView->Frame();
-		BRect textRect = oldTextView->TextRect();
-		uint32 resizingMode = oldTextView->ResizingMode();
-		uint32 flags = oldTextView->Flags();
-
-		// Remove old text view
-		RemoveChild(oldTextView);
-		delete oldTextView;
-
-		// Create and add custom text view
-		dateTextView = new DateTextView(frame, "_tv_", textRect, resizingMode, flags);
-		dateTextView->SetParentControl(this);
-		dateTextView->SetText(text);
-		AddChild(dateTextView);
-	}
-}
-
-DateTextControl::~DateTextControl() {
-}
-
-void DateTextControl::OpenDatePicker() {
-	// Calculate position for popup (below the control)
+void DateButton::OpenDatePicker() {
+	// Calculate position for popup (below the button)
 	BPoint screenPos = ConvertToScreen(BPoint(0, Bounds().Height()));
 
 	// Create and show date picker window
 	DatePickerWindow* picker = new DatePickerWindow(screenPos, this);
 	picker->Show();
+}
+
+void DateButton::SetDate(const char* date) {
+	dateString = date;
+	SetLabel(date);
 }
 
 BacktestView::BacktestView()
@@ -149,6 +104,8 @@ void BacktestView::AttachedToWindow() {
 	// Set message targets
 	runButton->SetTarget(this);
 	exportButton->SetTarget(this);
+	startDateButton->SetTarget(this);
+	endDateButton->SetTarget(this);
 
 	// Debug: verify tradesList target
 	if (tradesList) {
@@ -187,8 +144,17 @@ void BacktestView::SetupUI() {
 						.Add(baseAssetField)
 						.Add(quoteAssetField)
 						.End()
-					.Add(startDateControl)
-					.Add(endDateControl)
+					.Add(periodField)
+					.AddGroup(B_HORIZONTAL, 5)
+						.AddGroup(B_VERTICAL, 2)
+							.Add(new BStringView("startLabel", "Start:"))
+							.Add(startDateButton)
+							.End()
+						.AddGroup(B_VERTICAL, 2)
+							.Add(new BStringView("endLabel", "End:"))
+							.Add(endDateButton)
+							.End()
+						.End()
 					.Add(initialCapitalControl)
 					.Add(commissionControl)
 					.Add(slippageControl)
@@ -251,6 +217,19 @@ void BacktestView::SetupConfigPanel() {
 	quoteAssetMenu->ItemAt(0)->SetMarked(true); // USDT default
 	quoteAssetField = new BMenuField("quote", "Quote:", quoteAssetMenu);
 
+	// Period selector (preset date ranges)
+	periodMenu = new BPopUpMenu("Select Period");
+	const char* periods[] = {"30 days", "90 days", "180 days", "365 days", "Custom"};
+	for (int i = 0; i < 5; i++) {
+		BMessage* msg = new BMessage(MSG_PERIOD_SELECTED);
+		msg->AddInt32("days", i == 0 ? 30 : i == 1 ? 90 : i == 2 ? 180 : i == 3 ? 365 : 0);
+		BMenuItem* item = new BMenuItem(periods[i], msg);
+		item->SetTarget(this);
+		periodMenu->AddItem(item);
+	}
+	periodMenu->ItemAt(1)->SetMarked(true); // 90 days default
+	periodField = new BMenuField("period", "Period:", periodMenu);
+
 	// Date range controls
 	// Default: last 3 months ending yesterday (to ensure data availability)
 	time_t now = std::time(nullptr);
@@ -270,8 +249,8 @@ void BacktestView::SetupConfigPanel() {
 	localtime_r(&yesterday, &tmEnd);
 	std::strftime(endDateStr, sizeof(endDateStr), "%Y-%m-%d", &tmEnd);
 
-	startDateControl = new DateTextControl("startdate", "Start Date:", startDateStr);
-	endDateControl = new DateTextControl("enddate", "End Date:", endDateStr);
+	startDateButton = new DateButton("startdate", startDateStr);
+	endDateButton = new DateButton("enddate", endDateStr);
 
 	// Initial capital
 	initialCapitalControl = new BTextControl("capital", "Initial Capital:", "10000", nullptr);
@@ -389,6 +368,49 @@ void BacktestView::MessageReceived(BMessage* message) {
 			}
 			break;
 		}
+
+		case MSG_PERIOD_SELECTED: {
+			int32 days = 0;
+			if (message->FindInt32("days", &days) == B_OK && days > 0) {
+				// Calculate new date range
+				time_t now = std::time(nullptr);
+				time_t endDate = now - (24 * 60 * 60);  // Yesterday
+				// For N days of data, we need to go back N-1 days from endDate
+				// because endDate itself counts as day 1
+				time_t startDate = endDate - ((days - 1) * 24 * 60 * 60);
+
+				char startDateStr[32];
+				char endDateStr[32];
+
+				// Format start date
+				struct tm tmStart;
+				localtime_r(&startDate, &tmStart);
+				std::strftime(startDateStr, sizeof(startDateStr), "%Y-%m-%d", &tmStart);
+
+				// Format end date
+				struct tm tmEnd;
+				localtime_r(&endDate, &tmEnd);
+				std::strftime(endDateStr, sizeof(endDateStr), "%Y-%m-%d", &tmEnd);
+
+				// Update date buttons
+				startDateButton->SetDate(startDateStr);
+				endDateButton->SetDate(endDateStr);
+			}
+			// If days == 0, it means "Custom" was selected, do nothing
+			break;
+		}
+
+		case MSG_START_DATE_CLICKED:
+			if (startDateButton) {
+				startDateButton->OpenDatePicker();
+			}
+			break;
+
+		case MSG_END_DATE_CLICKED:
+			if (endDateButton) {
+				endDateButton->OpenDatePicker();
+			}
+			break;
 
 		default:
 			BView::MessageReceived(message);
@@ -526,9 +548,9 @@ void BacktestView::RunBacktest() {
 		config.useTakeProfit = true;
 		config.maxOpenPositions = recipe.risk.maxOpenPositions;
 
-		// Parse date range from controls
-		const char* startDateStr = startDateControl->Text();
-		const char* endDateStr = endDateControl->Text();
+		// Parse date range from buttons
+		const char* startDateStr = startDateButton->GetDate();
+		const char* endDateStr = endDateButton->GetDate();
 
 		struct tm tmStart = {}, tmEnd = {};
 		if (sscanf(startDateStr, "%d-%d-%d", &tmStart.tm_year, &tmStart.tm_mon, &tmStart.tm_mday) != 3) {

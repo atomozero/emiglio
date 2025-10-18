@@ -5,73 +5,67 @@
 #include <View.h>
 #include <Button.h>
 #include <StringView.h>
-#include <TextControl.h>
 #include <Messenger.h>
 #include <ctime>
 
+namespace BPrivate {
+	class BCalendarView;
+}
+
 namespace Emiglio {
 namespace UI {
+
+// Forward declaration
+class DateButton;
 
 // Message constants
 enum {
 	MSG_DATE_SELECTED = 'dtsl',
 	MSG_PREV_MONTH = 'prvm',
-	MSG_NEXT_MONTH = 'nxtm'
+	MSG_NEXT_MONTH = 'nxtm',
+	MSG_PREV_YEAR = 'prvy',
+	MSG_NEXT_YEAR = 'nxty'
 };
 
-// Calendar view that shows a month grid
+// Calendar view using native BCalendarView
 class CalendarView : public BView {
 public:
 	CalendarView();
 	virtual ~CalendarView();
 
 	virtual void AttachedToWindow();
-	virtual void Draw(BRect updateRect);
-	virtual void MouseDown(BPoint where);
+	virtual void MessageReceived(BMessage* message);
 
-	void SetDate(int year, int month, int day);
-	void SetMonth(int year, int month);
-	void GetSelectedDate(int& year, int& month, int& day);
+	void SetDate(int32 year, int32 month, int32 day);
+	void GetSelectedDate(int32& year, int32& month, int32& day);
 
 private:
-	void CalculateLayout();
-	int GetDayAt(BPoint point);
-	int GetDaysInMonth(int year, int month);
-	int GetFirstDayOfWeek(int year, int month);  // 0=Sunday, 6=Saturday
+	void UpdateLabels();
 
-	int currentYear;
-	int currentMonth;
-	int selectedDay;
-
-	BRect dayRects[42];  // Max 6 weeks * 7 days
-	float cellWidth;
-	float cellHeight;
-	float headerHeight;
+	BPrivate::BCalendarView* calendarView;
+	BButton* prevMonthButton;
+	BButton* nextMonthButton;
+	BButton* prevYearButton;
+	BButton* nextYearButton;
+	BStringView* monthLabel;
+	BStringView* yearLabel;
 };
 
 // Date picker popup window
 class DatePickerWindow : public BWindow {
 public:
-	DatePickerWindow(BPoint position, BTextControl* targetControl);
+	DatePickerWindow(BPoint position, DateButton* targetButton);
 	virtual ~DatePickerWindow();
 
 	virtual void MessageReceived(BMessage* message);
 	virtual bool QuitRequested();
 
 private:
-	void UpdateMonthLabel();
 	void SendDateToTarget();
 
-	BTextControl* target;
+	DateButton* target;
 	BMessenger targetMessenger;
-
-	BStringView* monthLabel;
-	BButton* prevButton;
-	BButton* nextButton;
 	CalendarView* calendarView;
-
-	int currentYear;
-	int currentMonth;
 };
 
 } // namespace UI
