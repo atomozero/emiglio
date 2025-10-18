@@ -348,7 +348,7 @@ void EquityChartView::DrawTradeMarkers(BRect bounds) {
 				SetPenSize(1.0f);
 			}
 
-			// Draw connecting line and highlight circle if selected (only if both points are visible)
+			// Draw connecting line and highlight if selected (only if exit is visible)
 			if (isSelected && exitVisible) {
 				// Draw thick connecting line
 				SetHighColor(255, 200, 0, 200);  // Bright orange
@@ -362,23 +362,133 @@ void EquityChartView::DrawTradeMarkers(BRect bounds) {
 				StrokeEllipse(BPoint(x, y), 15, 15);
 				StrokeEllipse(BPoint(exitX, exitY), 15, 15);
 				SetPenSize(1.0f);
+			}
 
-				// Draw info label
-				SetHighColor(255, 255, 255, 230);
-				BRect labelRect(exitX + 20, exitY - 30, exitX + 150, exitY - 5);
-				FillRect(labelRect);
-				SetHighColor(255, 200, 0);
-				StrokeRect(labelRect);
-
-				// Draw P&L text
-				SetHighColor(trade.pnl >= 0 ? 34 : 220, trade.pnl >= 0 ? 139 : 38, trade.pnl >= 0 ? 34 : 38);
+			// Draw detailed tooltip for selected trade (always, even if exit is not visible)
+			if (isSelected) {
 				BFont smallFont(*be_plain_font);
-				smallFont.SetSize(10.0);
+				smallFont.SetSize(9.5);
 				SetFont(&smallFont);
 
-				std::ostringstream labelText;
-				labelText << "P&L: " << (trade.pnl >= 0 ? "+" : "") << "$" << std::fixed << std::setprecision(2) << trade.pnl;
-				DrawString(labelText.str().c_str(), BPoint(labelRect.left + 5, labelRect.bottom - 5));
+				font_height fh;
+				GetFontHeight(&fh);
+				float lineHeight = fh.ascent + fh.descent + fh.leading + 2;
+
+				// Prepare tooltip text lines
+				std::vector<std::string> tooltipLines;
+				std::ostringstream oss;
+
+				// Trade ID
+				oss << "Trade #" << (selectedTradeIndex + 1);
+				tooltipLines.push_back(oss.str());
+				oss.str("");
+
+				// Entry price and time
+				oss << "Entry: $" << std::fixed << std::setprecision(2) << trade.entryPrice;
+				tooltipLines.push_back(oss.str());
+				oss.str("");
+
+				// Exit price and time
+				oss << "Exit: $" << std::fixed << std::setprecision(2) << trade.exitPrice;
+				tooltipLines.push_back(oss.str());
+				oss.str("");
+
+				// Quantity
+				oss << "Qty: " << std::fixed << std::setprecision(6) << trade.quantity;
+				tooltipLines.push_back(oss.str());
+				oss.str("");
+
+				// P&L in dollars
+				oss << "P&L: " << (trade.pnl >= 0 ? "+" : "") << "$" << std::fixed << std::setprecision(2) << trade.pnl;
+				tooltipLines.push_back(oss.str());
+				oss.str("");
+
+				// P&L percentage
+				double pnlPercent = (trade.pnl / (trade.entryPrice * trade.quantity)) * 100.0;
+				oss << "Return: " << (pnlPercent >= 0 ? "+" : "") << std::fixed << std::setprecision(2) << pnlPercent << "%";
+				tooltipLines.push_back(oss.str());
+				oss.str("");
+
+				// Exit reason
+				oss << "Reason: " << trade.exitReason;
+				tooltipLines.push_back(oss.str());
+
+				// Calculate tooltip size
+				float maxWidth = 0;
+				for (const auto& line : tooltipLines) {
+					float width = smallFont.StringWidth(line.c_str());
+					if (width > maxWidth) maxWidth = width;
+				}
+
+				float tooltipWidth = maxWidth + 16;
+				float tooltipHeight = tooltipLines.size() * lineHeight + 10;
+
+				// Position tooltip - prefer near exit if visible, otherwise near entry
+				float tooltipX, tooltipY;
+				if (exitVisible) {
+					tooltipX = exitX + 20;
+					tooltipY = exitY - tooltipHeight - 10;
+				} else {
+					// If exit not visible, place tooltip near entry point
+					tooltipX = x + 20;
+					tooltipY = y - tooltipHeight - 10;
+				}
+
+				// Adjust position if tooltip goes outside bounds
+				if (tooltipX + tooltipWidth > bounds.right - 10) {
+					tooltipX = (exitVisible ? exitX : x) - tooltipWidth - 20;
+				}
+				if (tooltipY < bounds.top + 40) {
+					tooltipY = (exitVisible ? exitY : y) + 20;
+				}
+				if (tooltipY + tooltipHeight > bounds.bottom - 50) {
+					tooltipY = bounds.bottom - 50 - tooltipHeight;
+				}
+
+				// Final safety check - keep tooltip completely in bounds
+				if (tooltipX < bounds.left + 10) tooltipX = bounds.left + 10;
+				if (tooltipY < bounds.top + 40) tooltipY = bounds.top + 40;
+
+				BRect labelRect(tooltipX, tooltipY, tooltipX + tooltipWidth, tooltipY + tooltipHeight);
+
+				// Draw tooltip background with shadow
+				SetHighColor(40, 40, 45, 180);
+				FillRect(labelRect.OffsetByCopy(2, 2));
+
+				// Draw tooltip background
+				SetHighColor(255, 255, 255, 245);
+				FillRect(labelRect);
+
+				// Draw border
+				SetHighColor(255, 200, 0);
+				SetPenSize(2.0f);
+				StrokeRect(labelRect);
+				SetPenSize(1.0f);
+
+				// Draw text lines
+				float textY = labelRect.top + lineHeight - 2;
+				for (size_t i = 0; i < tooltipLines.size(); i++) {
+					const auto& line = tooltipLines[i];
+
+					// Use different colors for different types of info
+					if (i == 0) {
+						// Trade ID - orange
+						SetHighColor(255, 150, 0);
+					} else if (i == 4 || i == 5) {
+						// P&L and Return - green/red based on value
+						SetHighColor(trade.pnl >= 0 ? 34 : 220, trade.pnl >= 0 ? 139 : 38, trade.pnl >= 0 ? 34 : 38);
+					} else if (i == 6) {
+						// Exit reason - gray
+						SetHighColor(90, 90, 100);
+					} else {
+						// Other info - dark gray
+						SetHighColor(50, 50, 60);
+					}
+
+					DrawString(line.c_str(), BPoint(labelRect.left + 8, textY));
+					textY += lineHeight;
+				}
+
 				SetFont(be_plain_font);
 			}
 		}
