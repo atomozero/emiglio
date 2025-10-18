@@ -21,7 +21,7 @@ namespace UI {
 MainWindow::MainWindow()
 	: BWindow(BRect(50, 50, 1400, 900), "Emiglio - Trading Bot",
 	          B_TITLED_WINDOW,
-	          B_ASYNCHRONOUS_CONTROLS | B_AUTO_UPDATE_SIZE_LIMITS)
+	          B_ASYNCHRONOUS_CONTROLS)
 	, menuBar(nullptr)
 	, tabView(nullptr)
 	, backtestView(nullptr)
@@ -34,9 +34,6 @@ MainWindow::MainWindow()
 {
 	LOG_INFO("Initializing MainWindow");
 
-	// Set size limits - allow resizing
-	SetSizeLimits(1000, 3000, 700, 2000);
-
 	// Center window on screen
 	BScreen screen;
 	BRect screenFrame = screen.Frame();
@@ -47,6 +44,9 @@ MainWindow::MainWindow()
 	// Setup UI
 	SetupMenuBar();
 	SetupViews();
+
+	// Set size limits AFTER layout is built to prevent override
+	SetSizeLimits(1000, 3000, 700, 2000);
 
 	LOG_INFO("MainWindow initialized successfully");
 }
