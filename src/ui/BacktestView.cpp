@@ -224,8 +224,8 @@ void BacktestView::SetupResultsPanel() {
 	tradesList->SetTarget(this);
 
 	// Add columns (only P&L and Reason - details in tooltip)
-	tradesList->AddColumn(new BStringColumn("P&L", 90, 70, 120, 0), 0);
-	tradesList->AddColumn(new BStringColumn("Reason", 150, 100, 250, 0), 1);
+	tradesList->AddColumn(new ColoredColumn("P&L", 90, 70, 120, 0), 0);
+	tradesList->AddColumn(new ColoredColumn("Reason", 150, 100, 250, 0), 1);
 
 	// Build results panel - horizontal metrics layout
 	BLayoutBuilder::Group<>(resultsPanel, B_HORIZONTAL, 12)
@@ -474,6 +474,7 @@ void BacktestView::RunBacktest() {
 
 		// Display results
 		lastResult = result;
+		lastCandles = candles;  // Save candles for chart
 		DisplayResults(result);
 
 		// Save results to database
@@ -510,6 +511,20 @@ void BacktestView::DisplayResults(const Backtest::BacktestResult& result) {
 	equityChartView->SetEquityCurve(result.equityCurve);
 	equityChartView->SetTrades(result.trades);
 	equityChartView->SetInitialCapital(result.initialCapital);
+
+	// Convert candles to price data for chart
+	if (!lastCandles.empty()) {
+		std::vector<Backtest::EquityPoint> pricePoints;
+		for (const auto& candle : lastCandles) {
+			Backtest::EquityPoint point;
+			point.timestamp = candle.timestamp;
+			point.equity = candle.close;  // Using equity field to store price
+			point.cash = 0.0;
+			point.positionValue = 0.0;
+			pricePoints.push_back(point);
+		}
+		equityChartView->SetPriceData(pricePoints);
+	}
 
 	// Status
 	std::ostringstream status;
@@ -564,14 +579,22 @@ void BacktestView::DisplayResults(const Backtest::BacktestResult& result) {
 	for (const auto& trade : result.trades) {
 		BRow* row = new BRow();
 
-		// P&L column (with color)
+		// Determine row color based on profit/loss
+		rgb_color rowColor;
+		if (trade.pnl > 0) {
+			rowColor = {220, 255, 220, 255};  // Light green for winning trades
+		} else {
+			rowColor = {255, 220, 220, 255};  // Light red/pink for losing trades
+		}
+
+		// P&L column (with colored background)
 		std::ostringstream pnlStr;
 		pnlStr << std::fixed << std::setprecision(2);
 		pnlStr << (trade.pnl >= 0 ? "+" : "") << "$" << trade.pnl;
-		row->SetField(new BStringField(pnlStr.str().c_str()), 0);
+		row->SetField(new ColoredStringField(pnlStr.str().c_str(), rowColor), 0);
 
-		// Exit reason (no truncation needed with more space)
-		row->SetField(new BStringField(trade.exitReason.c_str()), 1);
+		// Exit reason (with same colored background)
+		row->SetField(new ColoredStringField(trade.exitReason.c_str(), rowColor), 1);
 
 		tradesList->AddRow(row);
 	}

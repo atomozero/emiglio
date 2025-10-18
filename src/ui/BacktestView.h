@@ -37,6 +37,38 @@ enum {
 	MSG_QUOTE_SELECTED = 'qots'
 };
 
+// Custom string field with background color
+class ColoredStringField : public BStringField {
+public:
+	ColoredStringField(const char* string, rgb_color bgColor)
+		: BStringField(string), fBackgroundColor(bgColor) {}
+
+	rgb_color BackgroundColor() const { return fBackgroundColor; }
+
+private:
+	rgb_color fBackgroundColor;
+};
+
+// Custom column that draws colored backgrounds
+class ColoredColumn : public BStringColumn {
+public:
+	ColoredColumn(const char* title, float width, float minWidth, float maxWidth, uint32 truncate)
+		: BStringColumn(title, width, minWidth, maxWidth, truncate) {}
+
+	void DrawField(BField* field, BRect rect, BView* parent) override {
+		ColoredStringField* coloredField = dynamic_cast<ColoredStringField*>(field);
+		if (coloredField) {
+			// Fill background with field's color
+			parent->SetHighColor(coloredField->BackgroundColor());
+			parent->FillRect(rect);
+		}
+
+		// Draw text normally
+		parent->SetHighColor(0, 0, 0);  // Black text
+		BStringColumn::DrawField(field, rect, parent);
+	}
+};
+
 // Custom column list view that sends selection message on single click
 class TradesColumnListView : public BColumnListView {
 public:
@@ -104,6 +136,7 @@ private:
 	// State
 	std::string selectedRecipePath;
 	Emiglio::Backtest::BacktestResult lastResult;
+	std::vector<Candle> lastCandles;
 	bool backtestRunning;
 	int32 selectedTradeIndex;
 };

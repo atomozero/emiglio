@@ -26,6 +26,7 @@ public:
 	void SetTrades(const std::vector<Backtest::Trade>& tradeList);
 	void SetInitialCapital(double capital);
 	void SetSelectedTradeIndex(int32 index);
+	void SetPriceData(const std::vector<Backtest::EquityPoint>& pricePoints);
 	void Clear();
 
 	// Get data
@@ -34,6 +35,7 @@ public:
 private:
 	void DrawGrid(BRect bounds);
 	void DrawEquityLine(BRect bounds);
+	void DrawPriceLine(BRect bounds);
 	void DrawTradeMarkers(BRect bounds);
 	void DrawAxes(BRect bounds);
 	void DrawLegend(BRect bounds);
@@ -41,12 +43,15 @@ private:
 
 	// Data
 	std::vector<Backtest::EquityPoint> equityCurve;
+	std::vector<Backtest::EquityPoint> priceData;
 	std::vector<Backtest::Trade> trades;
 	double initialCapital;
 
 	// View state
 	double minEquity;        // Min equity in view
 	double maxEquity;        // Max equity in view
+	double minPrice;         // Min price in view
+	double maxPrice;         // Max price in view
 	time_t startTime;        // First timestamp
 	time_t endTime;          // Last timestamp
 
