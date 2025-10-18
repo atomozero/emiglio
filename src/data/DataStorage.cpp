@@ -131,9 +131,13 @@ bool DataStorage::init(const std::string& dbPath) {
 		return true;
 	}
 
+	LOG_INFO("Attempting to open database: " + dbPath);
+
 	int rc = sqlite3_open(dbPath.c_str(), &pImpl->db);
 	if (rc != SQLITE_OK) {
-		LOG_ERROR("Cannot open database: " + std::string(sqlite3_errmsg(pImpl->db)));
+		std::string errMsg = pImpl->db ? sqlite3_errmsg(pImpl->db) : "Unknown error";
+		LOG_ERROR("Cannot open database: " + errMsg + " (code: " + std::to_string(rc) + ")");
+		LOG_ERROR("Database path: " + dbPath);
 		return false;
 	}
 
