@@ -629,10 +629,15 @@ void EquityChartView::DrawAxes(BRect bounds) {
 		time_t timestamp = startTime + (endTime - startTime) * i / numTimeLabels;
 		float x = bounds.left + 60 + (bounds.Width() - 75) * i / numTimeLabels;
 
-		// Format time
+		// Format time using gmtime for UTC timestamps
 		char timeStr[64];
-		struct tm* timeinfo = localtime(&timestamp);
-		strftime(timeStr, sizeof(timeStr), dateFormat, timeinfo);
+		struct tm* timeinfo = gmtime(&timestamp);
+		if (timeinfo) {
+			strftime(timeStr, sizeof(timeStr), dateFormat, timeinfo);
+		} else {
+			// Fallback if gmtime fails
+			snprintf(timeStr, sizeof(timeStr), "N/A");
+		}
 
 		// Draw label
 		float labelWidth = StringWidth(timeStr);
