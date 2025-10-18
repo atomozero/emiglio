@@ -150,11 +150,55 @@ void DashboardView::BuildLayout() {
 		.Add(candlesCountLabel)
 		.End();
 
+	// Real Portfolio Summary - AGGREGATED across all exchanges
+	BStringView* realSummaryLabel = new BStringView("", "[LIVE - REAL MONEY SUMMARY]");
+	BFont realSummaryFont(be_bold_font);
+	realSummaryFont.SetSize(11);
+	realSummaryLabel->SetFont(&realSummaryFont);
+	realSummaryLabel->SetHighColor(0, 120, 0); // Dark green
+
+	realTotalValueLabel = new BStringView("", "Total Value: $0.00");
+	realExchangeCountLabel = new BStringView("", "Active Exchanges: 0");
+	realLastUpdateLabel = new BStringView("", "Last Update: Never");
+
+	BFont realFont(be_plain_font);
+	realFont.SetSize(14);
+	realTotalValueLabel->SetFont(&realFont);
+	realTotalValueLabel->SetHighColor(0, 100, 0); // Green
+
+	BFont realSmallFont(be_plain_font);
+	realSmallFont.SetSize(12);
+	realExchangeCountLabel->SetFont(&realSmallFont);
+	realLastUpdateLabel->SetFont(&realSmallFont);
+	realExchangeCountLabel->SetHighColor(60, 60, 60);
+	realLastUpdateLabel->SetHighColor(60, 60, 60);
+
+	BBox* realSummaryBox = new BBox("real_summary_box");
+	realSummaryBox->SetLabel("Real Portfolio Summary (ALL EXCHANGES)");
+
+	// Set light green background
+	BView* realSummaryContent = new BView("real_summary_content", B_WILL_DRAW);
+	realSummaryContent->SetViewColor(240, 250, 240); // Very light green
+
+	BLayoutBuilder::Group<>(realSummaryContent, B_VERTICAL, B_USE_SMALL_SPACING)
+		.SetInsets(B_USE_SMALL_SPACING)
+		.Add(realSummaryLabel)
+		.AddStrut(B_USE_SMALL_SPACING)
+		.Add(realTotalValueLabel)
+		.AddStrut(B_USE_SMALL_SPACING)
+		.Add(realExchangeCountLabel)
+		.Add(realLastUpdateLabel)
+		.End();
+
+	BLayoutBuilder::Group<>(realSummaryBox, B_VERTICAL, 0)
+		.Add(realSummaryContent)
+		.End();
+
 	// Binance Portfolio section - REAL DATA from live exchange
 	BStringView* realDataLabel = new BStringView("", "[LIVE - REAL MONEY]");
-	BFont realFont(be_bold_font);
-	realFont.SetSize(11);
-	realDataLabel->SetFont(&realFont);
+	BFont binanceFont(be_bold_font);
+	binanceFont.SetSize(11);
+	realDataLabel->SetFont(&binanceFont);
 	realDataLabel->SetHighColor(0, 120, 0); // Dark green for real data
 
 	binanceStatusLabel = new BStringView("", "Status: Not connected");
@@ -228,12 +272,14 @@ void DashboardView::BuildLayout() {
 		.Add(titleView)
 		.Add(subtitleView)
 		.AddStrut(B_USE_DEFAULT_SPACING)
-		// Top row: Portfolio and Stats side by side
+		// Top row: Simulated Portfolio and Stats side by side
 		.AddGroup(B_HORIZONTAL, B_USE_DEFAULT_SPACING)
 			.Add(portfolioBox, 1.5)
 			.Add(statsBox, 1)
 		.End()
-		// Middle: Binance Portfolio (full width)
+		// Second row: Real Portfolio Summary (aggregated)
+		.Add(realSummaryBox, 1)
+		// Third row: Binance detailed portfolio (full width)
 		.Add(binanceBox, 2)
 		// Bottom: Recent backtests
 		.Add(recentBox, 1.5)
@@ -268,6 +314,7 @@ void DashboardView::MessageReceived(BMessage* message) {
 
 void DashboardView::RefreshData() {
 	LoadPortfolioStats();
+	LoadRealPortfolioSummary();
 	LoadBinancePortfolio();
 	LoadRecentBacktests();
 }
@@ -569,6 +616,75 @@ void DashboardView::LoadBinancePortfolio() {
 	}
 
 	LOG_INFO("Loaded " + std::to_string(balances.size()) + " Binance balances");
+}
+
+void DashboardView::LoadRealPortfolioSummary() {
+	// Aggregate real portfolio data across all exchanges
+	double totalValue = 0.0;
+	int activeExchanges = 0;
+	time_t lastUpdate = 0;
+
+	// Check Binance
+	if (credentialManager->hasCredentials("binance")) {
+		std::string apiKey, apiSecret;
+		if (credentialManager->loadCredentials("binance", apiKey, apiSecret)) {
+			if (binanceAPI->init(apiKey, apiSecret)) {
+				std::vector<Balance> balances = binanceAPI->getBalances();
+				if (!balances.empty()) {
+					activeExchanges++;
+					// For now, just sum up all balances
+					// TODO: Convert to USD using price API
+					for (const auto& balance : balances) {
+						// Approximate value (needs real price conversion)
+						if (balance.asset == "USDT" || balance.asset == "USDC" || balance.asset == "BUSD") {
+							totalValue += balance.total;
+						}
+						// For other assets, we'd need to fetch current price
+						// This is a simplified version
+					}
+					lastUpdate = time(nullptr);
+				}
+			}
+		}
+	}
+
+	// TODO: Add other exchanges here when implemented
+	// if (credentialManager->hasCredentials("coinbase")) { ... }
+	// if (credentialManager->hasCredentials("kraken")) { ... }
+
+	// Update labels
+	std::ostringstream oss;
+
+	oss.str("");
+	oss << "Total Value: $" << std::fixed << std::setprecision(2) << totalValue;
+	if (totalValue == 0.0) {
+		oss << " (approx, price conversion needed)";
+	}
+	realTotalValueLabel->SetText(oss.str().c_str());
+
+	oss.str("");
+	oss << "Active Exchanges: " << activeExchanges;
+	if (activeExchanges > 0) {
+		oss << " (Binance";
+		// Add more exchanges as they are implemented
+		oss << ")";
+	} else {
+		oss << " (none configured)";
+	}
+	realExchangeCountLabel->SetText(oss.str().c_str());
+
+	oss.str("");
+	if (lastUpdate > 0) {
+		char timeStr[64];
+		struct tm* timeinfo = localtime(&lastUpdate);
+		strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", timeinfo);
+		oss << "Last Update: " << timeStr;
+	} else {
+		oss << "Last Update: Never";
+	}
+	realLastUpdateLabel->SetText(oss.str().c_str());
+
+	LOG_INFO("Real portfolio summary: $" + std::to_string(totalValue) + " across " + std::to_string(activeExchanges) + " exchanges");
 }
 
 } // namespace UI

@@ -37,16 +37,22 @@ private:
 	void BuildLayout();
 	void LoadRecentBacktests();
 	void LoadPortfolioStats();
+	void LoadRealPortfolioSummary();
 	void LoadBinancePortfolio();
 
-	// Portfolio stats (paper trading/backtest)
+	// Portfolio stats (paper trading/backtest) - SIMULATED
 	BStringView* totalCapitalLabel;
 	BStringView* availableCashLabel;
 	BStringView* investedLabel;
 	BStringView* totalPnLLabel;
 	BStringView* totalPnLPercentLabel;
 
-	// Binance portfolio
+	// Real Portfolio Summary (aggregated across all exchanges)
+	BStringView* realTotalValueLabel;
+	BStringView* realExchangeCountLabel;
+	BStringView* realLastUpdateLabel;
+
+	// Binance portfolio (detailed)
 	BStringView* binanceStatusLabel;
 	BStringView* binanceTotalValueLabel;
 	BColumnListView* binanceBalancesView;
