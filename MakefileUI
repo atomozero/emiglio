@@ -21,6 +21,8 @@ SRCS = \
 	src/utils/JsonParser.cpp \
 	src/utils/Config.cpp \
 	src/utils/CredentialManager.cpp \
+	src/utils/NetworkManager.cpp \
+	src/utils/DataSyncManager.cpp \
 	src/strategy/Indicators.cpp \
 	src/strategy/RecipeLoader.cpp \
 	src/strategy/SignalGenerator.cpp \
