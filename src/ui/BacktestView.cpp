@@ -1,6 +1,7 @@
 #include "BacktestView.h"
 #include "MainWindow.h"
 #include "../utils/Logger.h"
+#include "../utils/Config.h"
 #include "../exchange/BinanceAPI.h"
 
 #include <LayoutBuilder.h>
@@ -204,17 +205,39 @@ void BacktestView::SetupConfigPanel() {
 
 	// Quote asset selector (stablecoins and major currencies)
 	quoteAssetMenu = new BPopUpMenu("Select Quote");
+
+	// Get user's preferred quote from settings
+	Config& config = Config::getInstance();
+	std::string preferredQuote = config.getPreferredQuote();
+
 	const char* quoteAssets[] = {
 		"USDT", "USDC", "BUSD", "USD", "EUR", "BTC", "ETH", "BNB"
 	};
+
+	// Add user's preferred quote first if it exists in the list
 	for (const char* asset : quoteAssets) {
-		BMessage* msg = new BMessage(MSG_QUOTE_SELECTED);
-		msg->AddString("asset", asset);
-		BMenuItem* item = new BMenuItem(asset, msg);
-		item->SetTarget(this);
-		quoteAssetMenu->AddItem(item);
+		if (std::string(asset) == preferredQuote) {
+			BMessage* msg = new BMessage(MSG_QUOTE_SELECTED);
+			msg->AddString("asset", asset);
+			BMenuItem* item = new BMenuItem(asset, msg);
+			item->SetTarget(this);
+			item->SetMarked(true);
+			quoteAssetMenu->AddItem(item);
+			break;
+		}
 	}
-	quoteAssetMenu->ItemAt(0)->SetMarked(true); // USDT default
+
+	// Add remaining quotes
+	for (const char* asset : quoteAssets) {
+		if (std::string(asset) != preferredQuote) {
+			BMessage* msg = new BMessage(MSG_QUOTE_SELECTED);
+			msg->AddString("asset", asset);
+			BMenuItem* item = new BMenuItem(asset, msg);
+			item->SetTarget(this);
+			quoteAssetMenu->AddItem(item);
+		}
+	}
+
 	quoteAssetField = new BMenuField("quote", "Quote:", quoteAssetMenu);
 
 	// Period selector (preset date ranges)

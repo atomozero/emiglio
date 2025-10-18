@@ -64,6 +64,18 @@ public:
 		return true;
 	}
 
+	// Get preferred quote asset for trading pairs (e.g., "USDT" for USD, "EUR" for EUR)
+	std::string getPreferredQuote() const {
+		std::string currency = getCurrency();
+		// Map fiat currencies to their crypto equivalent
+		if (currency == "USD") return "USDT";  // Tether USD
+		if (currency == "EUR") return "EUR";   // Euro stablecoin
+		if (currency == "GBP") return "GBP";   // British Pound (if available)
+		if (currency == "JPY") return "JPY";   // Japanese Yen (if available)
+		// For other currencies, default to USDT
+		return "USDT";
+	}
+
 	// Save to default location
 	bool save() { return save(getConfigDir() + "/config.json"); }
 

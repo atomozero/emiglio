@@ -67,6 +67,15 @@ bool Config::load(const std::string& configPath) {
 }
 
 bool Config::save(const std::string& configPath) {
+	// Ensure config directory exists
+	size_t lastSlash = configPath.find_last_of('/');
+	if (lastSlash != std::string::npos) {
+		std::string dir = configPath.substr(0, lastSlash);
+		// Create directory recursively
+		std::string cmd = "mkdir -p \"" + dir + "\"";
+		system(cmd.c_str());
+	}
+
 	std::ofstream file(configPath);
 	if (!file.is_open()) {
 		LOG_ERROR("Failed to open config file for writing: " + configPath);

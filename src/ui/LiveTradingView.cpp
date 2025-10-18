@@ -1,5 +1,6 @@
 #include "LiveTradingView.h"
 #include "../utils/Logger.h"
+#include "../utils/Config.h"
 
 #include <LayoutBuilder.h>
 #include <GroupView.h>
@@ -183,12 +184,33 @@ void LiveTradingView::BuildLayout() {
 	baseCurrencyMenu = new BMenuField("Base:", basePopup);
 
 	BPopUpMenu* quotePopup = new BPopUpMenu("Quote");
+
+	// Get user's preferred quote from settings
+	Config& config = Config::getInstance();
+	std::string preferredQuote = config.getPreferredQuote();
+
+	// Add user's preferred quote first, then others
 	const char* quoteCurrencies[] = {"USDT", "EUR", "BTC", "ETH", "BNB", "BUSD"};
+
+	// Add preferred quote first
 	for (const char* quote : quoteCurrencies) {
-		BMessage* msg = new BMessage(MSG_SYMBOL_CHANGED);
-		quotePopup->AddItem(new BMenuItem(quote, msg));
+		if (std::string(quote) == preferredQuote) {
+			BMessage* msg = new BMessage(MSG_SYMBOL_CHANGED);
+			BMenuItem* item = new BMenuItem(quote, msg);
+			quotePopup->AddItem(item);
+			item->SetMarked(true);
+			break;
+		}
 	}
-	quotePopup->ItemAt(0)->SetMarked(true);
+
+	// Add remaining quotes
+	for (const char* quote : quoteCurrencies) {
+		if (std::string(quote) != preferredQuote) {
+			BMessage* msg = new BMessage(MSG_SYMBOL_CHANGED);
+			quotePopup->AddItem(new BMenuItem(quote, msg));
+		}
+	}
+
 	quoteCurrencyMenu = new BMenuField("Quote:", quotePopup);
 
 	BPopUpMenu* sidePopup = new BPopUpMenu("Side");

@@ -1,6 +1,7 @@
 #include "ChartsView.h"
 #include "../strategy/Indicators.h"
 #include "../utils/Logger.h"
+#include "../utils/Config.h"
 #include "../exchange/BinanceAPI.h"
 
 #include <LayoutBuilder.h>
@@ -683,18 +684,34 @@ void ChartsView::BuildLayout() {
 	// Quote currency menu
 	BPopUpMenu* quotePopup = new BPopUpMenu("Quote");
 
-	// Add quote currencies in order of preference
-	const std::vector<std::string> preferredQuotes = {"USDT", "EUR", "BTC", "ETH", "BNB", "BUSD"};
+	// Get user's preferred quote from settings
+	Config& config = Config::getInstance();
+	std::string preferredQuote = config.getPreferredQuote();
+
+	// Add quote currencies with user's preference first
+	std::vector<std::string> preferredQuotes = {preferredQuote};
+	std::vector<std::string> otherQuotes = {"USDT", "EUR", "BTC", "ETH", "BNB", "BUSD"};
+
+	// Add other quotes that aren't the preferred one
+	for (const auto& quote : otherQuotes) {
+		if (quote != preferredQuote) {
+			preferredQuotes.push_back(quote);
+		}
+	}
 
 	for (const auto& quote : preferredQuotes) {
 		if (quoteCurrencies.find(quote) != quoteCurrencies.end()) {
 			BMessage* msg = new BMessage(MSG_QUOTE_CURRENCY_CHANGED);
 			msg->AddString("quote", quote.c_str());
-			quotePopup->AddItem(new BMenuItem(quote.c_str(), msg));
+			BMenuItem* item = new BMenuItem(quote.c_str(), msg);
+			quotePopup->AddItem(item);
+			// Mark user's preferred quote
+			if (quote == preferredQuote) {
+				item->SetMarked(true);
+			}
 		}
 	}
 
-	quotePopup->ItemAt(0)->SetMarked(true);
 	quoteCurrencyMenu = new BMenuField("Quote:", quotePopup);
 
 	// Timeframe menu

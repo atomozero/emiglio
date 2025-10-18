@@ -10,7 +10,10 @@
 #include <Alert.h>
 #include <Locale.h>
 #include <Country.h>
+#include <FormattingConventions.h>
 #include <NumberFormat.h>
+#include <cstdlib>  // For getenv
+#include <cstring>  // For strlen
 
 namespace Emiglio {
 namespace UI {
@@ -376,36 +379,81 @@ void SettingsView::UpdateStatus(const std::string& message, bool isError) {
 // === GENERAL PREFERENCES METHODS ===
 
 std::string SettingsView::GetSystemCurrency() {
-	// Try to detect from country code
-	BCountry country;
-	const char* countryCode = country.Code();
+	// Use BLocale API to get country code (Haiku's native way)
+	BLocale locale;
+	BFormattingConventions conventions;
 
-	if (countryCode != nullptr) {
-		std::string code(countryCode);
+	if (locale.GetFormattingConventions(&conventions) == B_OK) {
+		const char* countryCode = conventions.CountryCode();
+		if (countryCode != nullptr && strlen(countryCode) > 0) {
+			std::string code(countryCode);
+			LOG_INFO("BLocale detected country code: " + code);
 
-		// Map country codes to currencies
-		if (code == "US") return "USD";
-		if (code == "GB") return "GBP";
-		if (code == "JP") return "JPY";
-		if (code == "CH") return "CHF";
-		if (code == "AU") return "AUD";
-		if (code == "CA") return "CAD";
-		if (code == "CN") return "CNY";
-		if (code == "IN") return "INR";
-		if (code == "BR") return "BRL";
+			// Map country codes to currencies
+			if (code == "US") return "USD";
+			if (code == "GB") return "GBP";
+			if (code == "JP") return "JPY";
+			if (code == "CH") return "CHF";
+			if (code == "AU") return "AUD";
+			if (code == "CA") return "CAD";
+			if (code == "CN") return "CNY";
+			if (code == "IN") return "INR";
+			if (code == "BR") return "BRL";
 
-		// EU countries
-		if (code == "DE" || code == "FR" || code == "IT" ||
-		    code == "ES" || code == "NL" || code == "BE" ||
-		    code == "AT" || code == "PT" || code == "IE" ||
-		    code == "GR" || code == "FI") {
-			return "EUR";
+			// EU countries (using Euro)
+			if (code == "DE" || code == "FR" || code == "IT" ||
+			    code == "ES" || code == "NL" || code == "BE" ||
+			    code == "AT" || code == "PT" || code == "IE" ||
+			    code == "GR" || code == "FI" || code == "LU" ||
+			    code == "SI" || code == "SK" || code == "EE" ||
+			    code == "LV" || code == "LT" || code == "CY" ||
+			    code == "MT") {
+				return "EUR";
+			}
+
+			LOG_INFO("Country code " + code + " detected, defaulting to USD");
 		}
 	}
 
+	// Fallback: try environment variables
+	const char* lcMonetary = getenv("LC_MONETARY");
+	const char* lang = getenv("LANG");
+
+	std::string localeStr;
+	if (lcMonetary && strlen(lcMonetary) > 0) {
+		localeStr = lcMonetary;
+		LOG_INFO("Detected LC_MONETARY: " + localeStr);
+	} else if (lang && strlen(lang) > 0) {
+		localeStr = lang;
+		LOG_INFO("Detected LANG: " + localeStr);
+	}
+
+	if (!localeStr.empty()) {
+		// Extract country code from locale (e.g., "en_US" -> "US")
+		size_t underscorePos = localeStr.find('_');
+		if (underscorePos != std::string::npos && underscorePos + 2 < localeStr.length()) {
+			std::string countryCode = localeStr.substr(underscorePos + 1, 2);
+
+			// Map country codes to currencies
+			if (countryCode == "US") return "USD";
+			if (countryCode == "GB") return "GBP";
+			if (countryCode == "IT" || countryCode == "DE" || countryCode == "FR" ||
+			    countryCode == "ES") return "EUR";
+
+			LOG_INFO("Detected country code from env: " + countryCode);
+		}
+
+		// Check for language code patterns
+		if (localeStr.substr(0, 2) == "en") return "USD";
+		if (localeStr.substr(0, 2) == "de" || localeStr.substr(0, 2) == "fr" ||
+		    localeStr.substr(0, 2) == "it" || localeStr.substr(0, 2) == "es") return "EUR";
+		if (localeStr.substr(0, 2) == "ja") return "JPY";
+		if (localeStr.substr(0, 2) == "zh") return "CNY";
+		if (localeStr.substr(0, 2) == "pt") return "BRL";
+	}
+
 	// Default to USD
-	LOG_INFO("System currency detection: defaulting to USD (country code: " +
-	         std::string(countryCode ? countryCode : "unknown") + ")");
+	LOG_INFO("System currency detection: defaulting to USD (no locale info found)");
 	return "USD";
 }
 
