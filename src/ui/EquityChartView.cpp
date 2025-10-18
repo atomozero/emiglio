@@ -173,13 +173,9 @@ void EquityChartView::DrawEquityLine(BRect bounds) {
 		SetPenSize(1.0);
 	}
 
-	// Determine if profit or loss
-	double finalEquity = equityCurve.back().equity;
-	bool isProfit = finalEquity >= initialCapital;
-
 	// Fill area under curve with subtle gradient effect
 	if (equityCurve.size() > 1) {
-		SetHighColor(isProfit ? 220 : 255, isProfit ? 245 : 235, isProfit ? 220 : 235, 100);  // Semi-transparent
+		SetHighColor(200, 220, 240, 80);  // Light blue semi-transparent
 
 		// Create polygon for filled area
 		BPoint points[equityCurve.size() + 2];
@@ -204,8 +200,8 @@ void EquityChartView::DrawEquityLine(BRect bounds) {
 		FillPolygon(points, pointCount);
 	}
 
-	// Draw equity line
-	SetHighColor(isProfit ? 34 : 220, isProfit ? 139 : 38, isProfit ? 34 : 38);  // Green or Red
+	// Draw equity line in blue (neutral color to avoid confusion with markers)
+	SetHighColor(65, 105, 225);  // Royal Blue
 	SetPenSize(2.5);
 
 	BPoint prevPoint;
@@ -278,18 +274,35 @@ void EquityChartView::DrawTradeMarkers(BRect bounds) {
 			continue;
 		}
 
-		// Draw entry marker (upward triangle for BUY)
+		// Determine if trade is winning or losing
+		bool isWin = trade.pnl > 0;
+
+		// Draw entry marker - different shapes for wins/losses
 		float size = isSelected ? 10.0f : 8.0f;  // Bigger if selected
-		SetHighColor(34, 179, 34);  // Bright green
 		BPoint entryTriangle[3];
-		entryTriangle[0] = BPoint(x, y - size);           // Top
-		entryTriangle[1] = BPoint(x - size*0.6f, y + 2);  // Bottom left
-		entryTriangle[2] = BPoint(x + size*0.6f, y + 2);  // Bottom right
+
+		if (isWin) {
+			// Winning trade: Green upward triangle ▲
+			SetHighColor(34, 179, 34);  // Bright green
+			entryTriangle[0] = BPoint(x, y - size);           // Top
+			entryTriangle[1] = BPoint(x - size*0.6f, y + 2);  // Bottom left
+			entryTriangle[2] = BPoint(x + size*0.6f, y + 2);  // Bottom right
+		} else {
+			// Losing trade: Red downward triangle ▼
+			SetHighColor(220, 53, 69);  // Red
+			entryTriangle[0] = BPoint(x, y + size);           // Bottom
+			entryTriangle[1] = BPoint(x - size*0.6f, y - 2);  // Top left
+			entryTriangle[2] = BPoint(x + size*0.6f, y - 2);  // Top right
+		}
 		FillPolygon(entryTriangle, 3);
 
 		// Draw border (thicker if selected)
 		SetPenSize(isSelected ? 2.5f : 1.0f);
-		SetHighColor(isSelected ? 255 : 20, isSelected ? 200 : 120, isSelected ? 0 : 20);
+		if (isSelected) {
+			SetHighColor(255, 200, 0);  // Orange for selected
+		} else {
+			SetHighColor(isWin ? 20 : 150, isWin ? 120 : 30, isWin ? 20 : 40);
+		}
 		StrokePolygon(entryTriangle, 3);
 		SetPenSize(1.0f);
 
@@ -324,7 +337,6 @@ void EquityChartView::DrawTradeMarkers(BRect bounds) {
 			// Only draw exit marker if it's visible
 			if (exitVisible) {
 				// Draw exit marker (downward triangle for SELL) - color based on profit/loss
-				bool isWin = trade.pnl > 0;
 				if (isWin) {
 					SetHighColor(34, 179, 34);  // Green for winning trade
 				} else {
