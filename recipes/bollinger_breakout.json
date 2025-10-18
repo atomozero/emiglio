@@ -20,7 +20,9 @@
     {
       "name": "bollinger",
       "period": 20,
-      "multiplier": 2.0
+      "params": {
+        "std_dev": 2.0
+      }
     }
   ],
   "entryConditions": {

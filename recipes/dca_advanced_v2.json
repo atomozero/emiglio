@@ -1,0 +1,93 @@
+{
+  "name": "DCA Advanced ETH V2",
+  "description": "Enhanced Dollar Cost Averaging strategy for ETH with dual position capability. Buys on dips with RSI confirmation and strong trend filters (EMA200). Conservative position sizing allows true DCA with multiple entries.",
+  "market": {
+    "exchange": "binance",
+    "symbol": "ETHUSDT",
+    "timeframe": "1h"
+  },
+  "capital": {
+    "initial": 10000,
+    "positionSizePercent": 3
+  },
+  "risk": {
+    "stopLossPercent": 20.0,
+    "takeProfitPercent": 25.0,
+    "maxDailyLossPercent": 5.0,
+    "maxOpenPositions": 2
+  },
+  "indicators": [
+    {
+      "name": "rsi",
+      "period": 14,
+      "params": {
+        "overbought": 75,
+        "oversold": 42
+      }
+    },
+    {
+      "name": "ema",
+      "period": 50,
+      "params": {}
+    },
+    {
+      "name": "ema",
+      "period": 200,
+      "params": {}
+    },
+    {
+      "name": "macd",
+      "period": 26,
+      "params": {
+        "fast_period": 12,
+        "slow_period": 26,
+        "signal_period": 9
+      }
+    },
+    {
+      "name": "atr",
+      "period": 14,
+      "params": {}
+    }
+  ],
+  "entryConditions": {
+    "logic": "AND",
+    "rules": [
+      {
+        "indicator": "rsi",
+        "operator": "<",
+        "value": 42,
+        "compareWith": ""
+      },
+      {
+        "indicator": "close",
+        "operator": ">",
+        "value": 0,
+        "compareWith": "ema_200"
+      },
+      {
+        "indicator": "ema_50",
+        "operator": ">",
+        "value": 0,
+        "compareWith": "ema_200"
+      }
+    ]
+  },
+  "exitConditions": {
+    "logic": "OR",
+    "rules": [
+      {
+        "indicator": "rsi",
+        "operator": ">",
+        "value": 75,
+        "compareWith": ""
+      },
+      {
+        "indicator": "close",
+        "operator": "<",
+        "value": 0,
+        "compareWith": "ema_200"
+      }
+    ]
+  }
+}

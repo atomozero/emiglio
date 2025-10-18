@@ -20,9 +20,11 @@
     {
       "name": "macd",
       "period": 26,
-      "fast_period": 12,
-      "slow_period": 26,
-      "signal_period": 9
+      "params": {
+        "fast_period": 12,
+        "slow_period": 26,
+        "signal_period": 9
+      }
     }
   ],
   "entryConditions": {

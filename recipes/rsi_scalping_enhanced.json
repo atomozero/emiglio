@@ -1,0 +1,89 @@
+{
+  "name": "RSI Scalping Enhanced",
+  "description": "Enhanced RSI scalping strategy upgraded to 1h timeframe for better signal quality. Dual EMA filter (50/200) ensures strong trend. Increased position size and profit targets. Suitable for trending markets.",
+  "market": {
+    "exchange": "binance",
+    "symbol": "BTCUSDT",
+    "timeframe": "1h"
+  },
+  "capital": {
+    "initial": 1000,
+    "positionSizePercent": 15
+  },
+  "risk": {
+    "stopLossPercent": 2.5,
+    "takeProfitPercent": 7.0,
+    "maxDailyLossPercent": 5.0,
+    "maxOpenPositions": 3
+  },
+  "indicators": [
+    {
+      "name": "rsi",
+      "period": 14,
+      "params": {
+        "overbought": 70,
+        "oversold": 35
+      }
+    },
+    {
+      "name": "ema",
+      "period": 50,
+      "params": {}
+    },
+    {
+      "name": "ema",
+      "period": 200,
+      "params": {}
+    },
+    {
+      "name": "volume_sma",
+      "period": 20,
+      "params": {}
+    },
+    {
+      "name": "atr",
+      "period": 14,
+      "params": {}
+    }
+  ],
+  "entryConditions": {
+    "logic": "AND",
+    "rules": [
+      {
+        "indicator": "rsi",
+        "operator": "<",
+        "value": 35,
+        "compareWith": ""
+      },
+      {
+        "indicator": "close",
+        "operator": ">",
+        "value": 0,
+        "compareWith": "ema_50"
+      },
+      {
+        "indicator": "close",
+        "operator": ">",
+        "value": 0,
+        "compareWith": "ema_200"
+      }
+    ]
+  },
+  "exitConditions": {
+    "logic": "OR",
+    "rules": [
+      {
+        "indicator": "rsi",
+        "operator": ">",
+        "value": 70,
+        "compareWith": ""
+      },
+      {
+        "indicator": "close",
+        "operator": "<",
+        "value": 0,
+        "compareWith": "ema_50"
+      }
+    ]
+  }
+}

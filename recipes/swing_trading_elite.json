@@ -1,0 +1,132 @@
+{
+  "name": "Swing Trading Multi-TF - Elite",
+  "description": "Elite swing trading strategy with enhanced multi-timeframe filters. Uses EMA alignment (21/50/200), RSI filters, MACD confirmation, and Bollinger Bands. Optimized for trending markets with strong momentum.",
+  "market": {
+    "exchange": "binance",
+    "symbol": "BTCUSDT",
+    "timeframe": "4h"
+  },
+  "capital": {
+    "initial": 10000,
+    "positionSizePercent": 20
+  },
+  "risk": {
+    "stopLossPercent": 3.5,
+    "takeProfitPercent": 14.0,
+    "maxDailyLossPercent": 5.0,
+    "maxOpenPositions": 3
+  },
+  "indicators": [
+    {
+      "name": "ema",
+      "period": 21,
+      "params": {}
+    },
+    {
+      "name": "ema",
+      "period": 50,
+      "params": {}
+    },
+    {
+      "name": "ema",
+      "period": 200,
+      "params": {}
+    },
+    {
+      "name": "rsi",
+      "period": 14,
+      "params": {}
+    },
+    {
+      "name": "macd",
+      "period": 26,
+      "params": {
+        "fast_period": 12,
+        "slow_period": 26,
+        "signal_period": 9
+      }
+    },
+    {
+      "name": "bollinger",
+      "period": 20,
+      "params": {
+        "std_dev": 2
+      }
+    },
+    {
+      "name": "atr",
+      "period": 14,
+      "params": {}
+    }
+  ],
+  "entryConditions": {
+    "logic": "AND",
+    "rules": [
+      {
+        "indicator": "close",
+        "operator": ">",
+        "value": 0,
+        "compareWith": "ema_50"
+      },
+      {
+        "indicator": "close",
+        "operator": ">",
+        "value": 0,
+        "compareWith": "ema_200"
+      },
+      {
+        "indicator": "ema_21",
+        "operator": ">",
+        "value": 0,
+        "compareWith": "ema_50"
+      },
+      {
+        "indicator": "ema_50",
+        "operator": ">",
+        "value": 0,
+        "compareWith": "ema_200"
+      },
+      {
+        "indicator": "rsi",
+        "operator": ">",
+        "value": 45,
+        "compareWith": ""
+      },
+      {
+        "indicator": "rsi",
+        "operator": "<",
+        "value": 70,
+        "compareWith": ""
+      },
+      {
+        "indicator": "macd",
+        "operator": ">",
+        "value": 0,
+        "compareWith": "macd_signal"
+      }
+    ]
+  },
+  "exitConditions": {
+    "logic": "OR",
+    "rules": [
+      {
+        "indicator": "rsi",
+        "operator": ">",
+        "value": 78,
+        "compareWith": ""
+      },
+      {
+        "indicator": "close",
+        "operator": "<",
+        "value": 0,
+        "compareWith": "ema_21"
+      },
+      {
+        "indicator": "macd",
+        "operator": "<",
+        "value": 0,
+        "compareWith": "macd_signal"
+      }
+    ]
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "name": "Bollinger Mean Reversion",
+  "description": "Fixed Bollinger strategy using mean reversion instead of breakout. Buys at lower band with RSI oversold confirmation, exits at middle band. More reliable in ranging markets than the original breakout version.",
+  "market": {
+    "exchange": "binance",
+    "symbol": "BTCUSDT",
+    "timeframe": "1h"
+  },
+  "capital": {
+    "initial": 10000,
+    "positionSizePercent": 20
+  },
+  "risk": {
+    "stopLossPercent": 2.5,
+    "takeProfitPercent": 5.0,
+    "maxDailyLossPercent": 8.0,
+    "maxOpenPositions": 2
+  },
+  "indicators": [
+    {
+      "name": "bollinger",
+      "period": 20,
+      "params": {
+        "std_dev": 2.0
+      }
+    },
+    {
+      "name": "rsi",
+      "period": 14,
+      "params": {}
+    },
+    {
+      "name": "volume_sma",
+      "period": 20,
+      "params": {}
+    }
+  ],
+  "entryConditions": {
+    "logic": "AND",
+    "rules": [
+      {
+        "indicator": "close",
+        "operator": "<",
+        "value": 0,
+        "compareWith": "bb_lower"
+      },
+      {
+        "indicator": "rsi",
+        "operator": "<",
+        "value": 35,
+        "compareWith": ""
+      }
+    ]
+  },
+  "exitConditions": {
+    "logic": "OR",
+    "rules": [
+      {
+        "indicator": "close",
+        "operator": ">",
+        "value": 0,
+        "compareWith": "bb_middle"
+      },
+      {
+        "indicator": "rsi",
+        "operator": ">",
+        "value": 65,
+        "compareWith": ""
+      }
+    ]
+  }
+}

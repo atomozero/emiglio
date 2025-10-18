@@ -1,0 +1,76 @@
+{
+  "name": "Simple RSI Strategy - Safe",
+  "description": "FIXED VERSION with safe position sizing. RSI strategy with trend filter (EMA200) and volume confirmation. Position size reduced from DANGEROUS 100% to safe 25%. Buy when RSI oversold with trend confirmation.",
+  "market": {
+    "exchange": "binance",
+    "symbol": "BTCUSDT",
+    "timeframe": "1h"
+  },
+  "capital": {
+    "initial": 10000,
+    "positionSizePercent": 25
+  },
+  "risk": {
+    "stopLossPercent": 3.0,
+    "takeProfitPercent": 8.0,
+    "maxDailyLossPercent": 6.0,
+    "maxOpenPositions": 2
+  },
+  "indicators": [
+    {
+      "name": "rsi",
+      "period": 14,
+      "params": {}
+    },
+    {
+      "name": "ema",
+      "period": 200,
+      "params": {}
+    },
+    {
+      "name": "volume_sma",
+      "period": 20,
+      "params": {}
+    }
+  ],
+  "entryConditions": {
+    "logic": "AND",
+    "rules": [
+      {
+        "indicator": "rsi",
+        "operator": "<",
+        "value": 30,
+        "compareWith": ""
+      },
+      {
+        "indicator": "close",
+        "operator": ">",
+        "value": 0,
+        "compareWith": "ema_200"
+      },
+      {
+        "indicator": "volume",
+        "operator": ">",
+        "value": 0,
+        "compareWith": "volume_sma_20"
+      }
+    ]
+  },
+  "exitConditions": {
+    "logic": "OR",
+    "rules": [
+      {
+        "indicator": "rsi",
+        "operator": ">",
+        "value": 70,
+        "compareWith": ""
+      },
+      {
+        "indicator": "close",
+        "operator": "<",
+        "value": 0,
+        "compareWith": "ema_200"
+      }
+    ]
+  }
+}

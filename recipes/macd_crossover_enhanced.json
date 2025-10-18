@@ -1,0 +1,102 @@
+{
+  "name": "MACD Crossover ETH - Enhanced",
+  "description": "Enhanced MACD crossover strategy with trend and volume filters. Upgraded to 1h timeframe for reduced noise. Enters on MACD crossover above signal line with EMA200 trend confirmation and volume support.",
+  "market": {
+    "exchange": "binance",
+    "symbol": "ETHUSDT",
+    "timeframe": "1h"
+  },
+  "capital": {
+    "initial": 5000,
+    "positionSizePercent": 20
+  },
+  "risk": {
+    "stopLossPercent": 3.5,
+    "takeProfitPercent": 10.0,
+    "maxDailyLossPercent": 10.0,
+    "maxOpenPositions": 2
+  },
+  "indicators": [
+    {
+      "name": "macd",
+      "period": 26,
+      "params": {
+        "fast_period": 12,
+        "slow_period": 26,
+        "signal_period": 9
+      }
+    },
+    {
+      "name": "ema",
+      "period": 50,
+      "params": {}
+    },
+    {
+      "name": "ema",
+      "period": 200,
+      "params": {}
+    },
+    {
+      "name": "rsi",
+      "period": 14,
+      "params": {}
+    },
+    {
+      "name": "volume_sma",
+      "period": 20,
+      "params": {}
+    }
+  ],
+  "entryConditions": {
+    "logic": "AND",
+    "rules": [
+      {
+        "indicator": "macd",
+        "operator": ">",
+        "value": 0,
+        "compareWith": "macd_signal"
+      },
+      {
+        "indicator": "close",
+        "operator": ">",
+        "value": 0,
+        "compareWith": "ema_200"
+      },
+      {
+        "indicator": "macd",
+        "operator": ">",
+        "value": 0,
+        "compareWith": ""
+      },
+      {
+        "indicator": "volume",
+        "operator": ">",
+        "value": 0,
+        "compareWith": "volume_sma_20"
+      }
+    ]
+  },
+  "exitConditions": {
+    "logic": "OR",
+    "rules": [
+      {
+        "indicator": "macd",
+        "operator": "<",
+        "value": 0,
+        "compareWith": "macd_signal"
+      },
+      {
+        "indicator": "rsi",
+        "operator": ">",
+        "value": 75,
+        "compareWith": ""
+      },
+      {
+        "indicator": "close",
+        "operator": "<",
+        "value": 0,
+        "compareWith": "ema_50"
+      }
+    ]
+  }
+}
