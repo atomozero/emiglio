@@ -1,6 +1,7 @@
 #include "BacktestView.h"
 #include "MainWindow.h"
 #include "../utils/Logger.h"
+#include "../exchange/BinanceAPI.h"
 
 #include <LayoutBuilder.h>
 #include <Box.h>
@@ -13,6 +14,7 @@
 
 #include <sstream>
 #include <iomanip>
+#include <ctime>
 
 namespace Emiglio {
 namespace UI {
@@ -35,6 +37,75 @@ void TradesColumnListView::SelectionChanged() {
 	BMessage msg(MSG_TRADE_SELECTED);
 	BMessenger messenger(Target());
 	messenger.SendMessage(&msg);
+}
+
+// DateTextView implementation
+DateTextView::DateTextView(BRect frame, const char* name, BRect textRect,
+                           uint32 resizingMode, uint32 flags)
+	: BTextView(frame, name, textRect, resizingMode, flags)
+	, parentControl(nullptr)
+{
+	// Prevent user interaction
+	MakeEditable(false);
+	MakeSelectable(false);
+
+	// Set alignment and wrapping to prevent text overflow
+	SetAlignment(B_ALIGN_LEFT);
+	SetWordWrap(false);
+}
+
+DateTextView::~DateTextView() {
+}
+
+void DateTextView::MouseDown(BPoint where) {
+	// Open date picker when clicked
+	if (parentControl) {
+		DateTextControl* dateControl = dynamic_cast<DateTextControl*>(parentControl);
+		if (dateControl) {
+			dateControl->OpenDatePicker();
+		}
+	}
+}
+
+void DateTextView::KeyDown(const char* bytes, int32 numBytes) {
+	// Ignore all keyboard input - dates can only be selected via calendar
+}
+
+// DateTextControl implementation
+DateTextControl::DateTextControl(const char* name, const char* label, const char* text)
+	: BTextControl(name, label, text, nullptr)
+	, dateTextView(nullptr)
+{
+	// Replace the default text view with our custom one
+	BTextView* oldTextView = TextView();
+	if (oldTextView) {
+		BRect frame = oldTextView->Frame();
+		BRect textRect = oldTextView->TextRect();
+		uint32 resizingMode = oldTextView->ResizingMode();
+		uint32 flags = oldTextView->Flags();
+
+		// Remove old text view
+		RemoveChild(oldTextView);
+		delete oldTextView;
+
+		// Create and add custom text view
+		dateTextView = new DateTextView(frame, "_tv_", textRect, resizingMode, flags);
+		dateTextView->SetParentControl(this);
+		dateTextView->SetText(text);
+		AddChild(dateTextView);
+	}
+}
+
+DateTextControl::~DateTextControl() {
+}
+
+void DateTextControl::OpenDatePicker() {
+	// Calculate position for popup (below the control)
+	BPoint screenPos = ConvertToScreen(BPoint(0, Bounds().Height()));
+
+	// Create and show date picker window
+	DatePickerWindow* picker = new DatePickerWindow(screenPos, this);
+	picker->Show();
 }
 
 BacktestView::BacktestView()
@@ -116,6 +187,8 @@ void BacktestView::SetupUI() {
 						.Add(baseAssetField)
 						.Add(quoteAssetField)
 						.End()
+					.Add(startDateControl)
+					.Add(endDateControl)
 					.Add(initialCapitalControl)
 					.Add(commissionControl)
 					.Add(slippageControl)
@@ -177,6 +250,28 @@ void BacktestView::SetupConfigPanel() {
 	}
 	quoteAssetMenu->ItemAt(0)->SetMarked(true); // USDT default
 	quoteAssetField = new BMenuField("quote", "Quote:", quoteAssetMenu);
+
+	// Date range controls
+	// Default: last 3 months ending yesterday (to ensure data availability)
+	time_t now = std::time(nullptr);
+	time_t yesterday = now - (24 * 60 * 60);  // Yesterday
+	time_t threeMonthsAgo = yesterday - (90 * 24 * 60 * 60);  // 90 days before yesterday
+
+	char startDateStr[32];
+	char endDateStr[32];
+
+	// Format start date
+	struct tm tmStart;
+	localtime_r(&threeMonthsAgo, &tmStart);
+	std::strftime(startDateStr, sizeof(startDateStr), "%Y-%m-%d", &tmStart);
+
+	// Format end date
+	struct tm tmEnd;
+	localtime_r(&yesterday, &tmEnd);
+	std::strftime(endDateStr, sizeof(endDateStr), "%Y-%m-%d", &tmEnd);
+
+	startDateControl = new DateTextControl("startdate", "Start Date:", startDateStr);
+	endDateControl = new DateTextControl("enddate", "End Date:", endDateStr);
 
 	// Initial capital
 	initialCapitalControl = new BTextControl("capital", "Initial Capital:", "10000", nullptr);
@@ -431,18 +526,46 @@ void BacktestView::RunBacktest() {
 		config.useTakeProfit = true;
 		config.maxOpenPositions = recipe.risk.maxOpenPositions;
 
-		// Load historical data from database
+		// Parse date range from controls
+		const char* startDateStr = startDateControl->Text();
+		const char* endDateStr = endDateControl->Text();
+
+		struct tm tmStart = {}, tmEnd = {};
+		if (sscanf(startDateStr, "%d-%d-%d", &tmStart.tm_year, &tmStart.tm_mon, &tmStart.tm_mday) != 3) {
+			throw std::runtime_error("Invalid start date format. Use YYYY-MM-DD");
+		}
+		if (sscanf(endDateStr, "%d-%d-%d", &tmEnd.tm_year, &tmEnd.tm_mon, &tmEnd.tm_mday) != 3) {
+			throw std::runtime_error("Invalid end date format. Use YYYY-MM-DD");
+		}
+
+		// Adjust tm struct (year is years since 1900, month is 0-11)
+		tmStart.tm_year -= 1900;
+		tmStart.tm_mon -= 1;
+		tmStart.tm_hour = 0;
+		tmStart.tm_min = 0;
+		tmStart.tm_sec = 0;
+		tmEnd.tm_year -= 1900;
+		tmEnd.tm_mon -= 1;
+		tmEnd.tm_hour = 23;
+		tmEnd.tm_min = 59;
+		tmEnd.tm_sec = 59;
+
+		time_t startTime = std::mktime(&tmStart);
+		time_t endTime = std::mktime(&tmEnd);
+
+		if (startTime >= endTime) {
+			throw std::runtime_error("Start date must be before end date");
+		}
+
+		// Load or download historical data
 		DataStorage storage;
 		if (!storage.init("/boot/home/Emiglio/data/emilio.db")) {
 			throw std::runtime_error("Failed to initialize database");
 		}
 
-		LOG_INFO("Loading candles for " + symbol);
+		LOG_INFO("Loading candles for " + symbol + " from " + startDateStr + " to " + endDateStr);
 
-		// Get all available candles
-		time_t startTime = 0;  // From beginning
-		time_t endTime = std::time(nullptr);  // To now
-
+		// Try to get candles from database first
 		std::vector<Candle> candles = storage.getCandles(
 			recipe.market.exchange,
 			symbol,
@@ -451,9 +574,78 @@ void BacktestView::RunBacktest() {
 			endTime
 		);
 
+		// If not enough data in database, download from Binance
 		if (candles.empty()) {
-			throw std::runtime_error("No candles found for " + symbol +
-			                          ". Please import data first.");
+			LOG_INFO("No data in database, downloading from Binance...");
+			progressBar->Update(15.0, "Downloading historical data from Binance...");
+
+			// Download from Binance
+			BinanceAPI api;
+			if (!api.init("", "")) {  // Public API, no keys needed
+				throw std::runtime_error("Failed to initialize Binance API");
+			}
+
+			// Download in chunks (Binance limit is 1000 per request)
+			// Calculate timeframe duration in seconds
+			int timeframeSec = 3600; // Default 1h
+			if (recipe.market.timeframe == "1m") timeframeSec = 60;
+			else if (recipe.market.timeframe == "5m") timeframeSec = 300;
+			else if (recipe.market.timeframe == "15m") timeframeSec = 900;
+			else if (recipe.market.timeframe == "30m") timeframeSec = 1800;
+			else if (recipe.market.timeframe == "1h") timeframeSec = 3600;
+			else if (recipe.market.timeframe == "4h") timeframeSec = 14400;
+			else if (recipe.market.timeframe == "1d") timeframeSec = 86400;
+
+			time_t currentStart = startTime;
+			int totalChunks = 0;
+			int emptyChunks = 0;
+
+			while (currentStart < endTime && emptyChunks < 3) {  // Max 3 consecutive empty chunks
+				std::vector<Candle> chunk = api.getCandles(
+					symbol,
+					recipe.market.timeframe,
+					currentStart,
+					endTime,
+					1000  // Max limit
+				);
+
+				totalChunks++;
+
+				if (chunk.empty()) {
+					emptyChunks++;
+					// Move forward by a reasonable amount (1000 candles worth)
+					currentStart += (1000 * timeframeSec);
+					LOG_INFO("Empty chunk received, moving forward...");
+					continue;
+				}
+
+				emptyChunks = 0; // Reset empty counter
+
+				// Save to database
+				storage.insertCandles(chunk);
+
+				// Merge with main candles vector
+				candles.insert(candles.end(), chunk.begin(), chunk.end());
+
+				// Move to next chunk: start from the last candle + 1 timeframe
+				currentStart = chunk.back().timestamp + timeframeSec;
+
+				// Update progress
+				double progress = 15.0 + (30.0 * (double)(currentStart - startTime) / (endTime - startTime));
+				std::string statusMsg = "Downloaded " + std::to_string(candles.size()) + " candles...";
+				progressBar->Update(progress, statusMsg.c_str());
+
+				LOG_INFO("Downloaded chunk " + std::to_string(totalChunks) +
+				         ": " + std::to_string(chunk.size()) +
+				         " candles (total: " + std::to_string(candles.size()) + ")");
+			}
+
+			LOG_INFO("Downloaded and saved " + std::to_string(candles.size()) + " candles");
+		}
+
+		if (candles.empty()) {
+			throw std::runtime_error("No candles available for " + symbol +
+			                          " in the specified date range");
 		}
 
 		LOG_INFO("Loaded " + std::to_string(candles.size()) + " candles");

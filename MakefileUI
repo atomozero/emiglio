@@ -10,6 +10,7 @@ SRCS = \
 	src/ui/MainWindow.cpp \
 	src/ui/BacktestView.cpp \
 	src/ui/EquityChartView.cpp \
+	src/ui/DatePickerWindow.cpp \
 	src/ui/DashboardView.cpp \
 	src/ui/TradesView.cpp \
 	src/ui/ChartsView.cpp \

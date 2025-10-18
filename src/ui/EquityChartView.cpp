@@ -610,6 +610,21 @@ void EquityChartView::DrawAxes(BRect bounds) {
 	// X-axis (time labels)
 	SetHighColor(90, 90, 100);
 	int numTimeLabels = 6;
+
+	// Determine date format based on time range
+	time_t timeRange = endTime - startTime;
+	const char* dateFormat;
+	if (timeRange > 365 * 24 * 60 * 60) {
+		// More than 1 year: show "MMM YYYY"
+		dateFormat = "%b %Y";
+	} else if (timeRange > 60 * 24 * 60 * 60) {
+		// More than 60 days: show "MMM DD"
+		dateFormat = "%b %d";
+	} else {
+		// Less than 60 days: show "MMM DD"
+		dateFormat = "%b %d";
+	}
+
 	for (int i = 0; i <= numTimeLabels; i++) {
 		time_t timestamp = startTime + (endTime - startTime) * i / numTimeLabels;
 		float x = bounds.left + 60 + (bounds.Width() - 75) * i / numTimeLabels;
@@ -617,7 +632,7 @@ void EquityChartView::DrawAxes(BRect bounds) {
 		// Format time
 		char timeStr[64];
 		struct tm* timeinfo = localtime(&timestamp);
-		strftime(timeStr, sizeof(timeStr), "%b %d", timeinfo);
+		strftime(timeStr, sizeof(timeStr), dateFormat, timeinfo);
 
 		// Draw label
 		float labelWidth = StringWidth(timeStr);

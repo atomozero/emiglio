@@ -4,6 +4,7 @@
 #include <View.h>
 #include <Button.h>
 #include <TextControl.h>
+#include <TextView.h>
 #include <MenuField.h>
 #include <PopUpMenu.h>
 #include <StringView.h>
@@ -19,6 +20,7 @@
 #include "../strategy/RecipeLoader.h"
 #include "../data/DataStorage.h"
 #include "EquityChartView.h"
+#include "DatePickerWindow.h"
 
 #include <string>
 #include <vector>
@@ -80,6 +82,32 @@ public:
 	virtual void SelectionChanged() override;
 };
 
+// Custom text view that opens date picker when clicked
+class DateTextView : public BTextView {
+public:
+	DateTextView(BRect frame, const char* name, BRect textRect, uint32 resizingMode, uint32 flags);
+	virtual ~DateTextView();
+
+	virtual void MouseDown(BPoint where) override;
+	virtual void KeyDown(const char* bytes, int32 numBytes) override;
+	void SetParentControl(BTextControl* parent) { parentControl = parent; }
+
+private:
+	BTextControl* parentControl;
+};
+
+// Custom text control that opens a date picker when clicked
+class DateTextControl : public BTextControl {
+public:
+	DateTextControl(const char* name, const char* label, const char* text);
+	virtual ~DateTextControl();
+
+	void OpenDatePicker();
+
+private:
+	DateTextView* dateTextView;
+};
+
 // Backtest view - run backtests and view results
 class BacktestView : public BView {
 public:
@@ -115,6 +143,8 @@ private:
 	BPopUpMenu* baseAssetMenu;
 	BMenuField* quoteAssetField;
 	BPopUpMenu* quoteAssetMenu;
+	DateTextControl* startDateControl;
+	DateTextControl* endDateControl;
 	BTextControl* initialCapitalControl;
 	BTextControl* commissionControl;
 	BTextControl* slippageControl;
