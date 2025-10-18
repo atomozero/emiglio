@@ -57,6 +57,16 @@ public:
 	std::string getRecipesDir() const;
 	std::string getLogFile() const;
 
+	// Helper methods for common settings
+	std::string getCurrency() const { return getString("display.currency", "USD"); }
+	bool setCurrency(const std::string& currency) {
+		setString("display.currency", currency);
+		return true;
+	}
+
+	// Save to default location
+	bool save() { return save(getConfigDir() + "/config.json"); }
+
 	// Delete copy constructor and assignment operator
 	Config(const Config&) = delete;
 	Config& operator=(const Config&) = delete;

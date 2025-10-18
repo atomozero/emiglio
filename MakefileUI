@@ -19,6 +19,7 @@ SRCS = \
 	src/ui/SettingsView.cpp \
 	src/utils/Logger.cpp \
 	src/utils/JsonParser.cpp \
+	src/utils/Config.cpp \
 	src/utils/CredentialManager.cpp \
 	src/strategy/Indicators.cpp \
 	src/strategy/RecipeLoader.cpp \

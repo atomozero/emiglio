@@ -1,5 +1,6 @@
 #include "SettingsView.h"
 #include "../utils/Logger.h"
+#include "../utils/Config.h"
 #include "../exchange/BinanceAPI.h"
 #include <LayoutBuilder.h>
 #include <GroupLayout.h>
@@ -7,6 +8,9 @@
 #include <StringView.h>
 #include <Box.h>
 #include <Alert.h>
+#include <Locale.h>
+#include <Country.h>
+#include <NumberFormat.h>
 
 namespace Emiglio {
 namespace UI {
@@ -19,6 +23,9 @@ SettingsView::SettingsView()
 	  fDeleteButton(nullptr),
 	  fTestButton(nullptr),
 	  fStatusLabel(nullptr),
+	  fCurrencyMenu(nullptr),
+	  fSavePreferencesButton(nullptr),
+	  fPreferencesStatusLabel(nullptr),
 	  fCredentialManager(std::make_unique<CredentialManager>())
 {
 	SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
@@ -28,9 +35,69 @@ SettingsView::SettingsView()
 		LOG_ERROR("Failed to initialize CredentialManager: " + fCredentialManager->getLastError());
 	}
 
-	// Title
+	// === GENERAL PREFERENCES SECTION ===
+	BStringView* prefsTitle = new BStringView("prefs_title", "General Preferences");
+	BFont titleFont(be_bold_font);
+	titleFont.SetSize(14);
+	prefsTitle->SetFont(&titleFont);
+
+	// Currency selection
+	BPopUpMenu* currencyPopUp = new BPopUpMenu("Select Currency");
+
+	// Add major currencies
+	const char* currencies[] = {
+		"USD - US Dollar",
+		"EUR - Euro",
+		"GBP - British Pound",
+		"JPY - Japanese Yen",
+		"CHF - Swiss Franc",
+		"AUD - Australian Dollar",
+		"CAD - Canadian Dollar",
+		"CNY - Chinese Yuan",
+		"INR - Indian Rupee",
+		"BRL - Brazilian Real"
+	};
+
+	std::string systemCurrency = GetSystemCurrency();
+	for (size_t i = 0; i < sizeof(currencies) / sizeof(currencies[0]); i++) {
+		BMessage* msg = new BMessage(MSG_CURRENCY_CHANGED);
+		msg->AddString("currency", currencies[i]);
+		BMenuItem* item = new BMenuItem(currencies[i], msg);
+		currencyPopUp->AddItem(item);
+
+		// Mark system currency as default
+		if (std::string(currencies[i]).find(systemCurrency) == 0) {
+			item->SetMarked(true);
+		}
+	}
+
+	fCurrencyMenu = new BMenuField("Display Currency:", currencyPopUp);
+
+	fSavePreferencesButton = new BButton("Save Preferences", new BMessage(MSG_SAVE_PREFERENCES));
+	fPreferencesStatusLabel = new BStringView("prefs_status", "");
+
+	std::string currencyInfoText = "System detected: " + systemCurrency + " (auto-selected)";
+	BStringView* currencyInfo = new BStringView("currency_info", currencyInfoText.c_str());
+	currencyInfo->SetFont(be_plain_font);
+
+	BBox* preferencesBox = new BBox("preferences_box");
+	preferencesBox->SetLabel("Display Settings");
+
+	BLayoutBuilder::Group<>(preferencesBox, B_VERTICAL, B_USE_SMALL_SPACING)
+		.SetInsets(B_USE_DEFAULT_SPACING)
+		.Add(fCurrencyMenu)
+		.Add(currencyInfo)
+		.AddStrut(B_USE_SMALL_SPACING)
+		.AddGroup(B_HORIZONTAL)
+			.Add(fSavePreferencesButton)
+			.AddGlue()
+		.End()
+		.Add(fPreferencesStatusLabel)
+		.End();
+
+	// === BINANCE API SECTION ===
 	BStringView* title = new BStringView("title", "Binance API Configuration");
-	title->SetFont(be_bold_font);
+	title->SetFont(&titleFont);
 
 	// Info text
 	BStringView* info = new BStringView("info",
@@ -77,10 +144,12 @@ SettingsView::SettingsView()
 		.Add(step5)
 		.End();
 
-	// Main layout
-	BLayoutBuilder::Group<>(this, B_VERTICAL, B_USE_DEFAULT_SPACING)
-		.SetInsets(B_USE_WINDOW_SPACING)
-		.Add(title)
+	// Binance API box
+	BBox* binanceBox = new BBox("binance_box");
+	binanceBox->SetLabel("Binance API Credentials");
+
+	BLayoutBuilder::Group<>(binanceBox, B_VERTICAL, B_USE_SMALL_SPACING)
+		.SetInsets(B_USE_DEFAULT_SPACING)
 		.Add(info)
 		.AddStrut(B_USE_SMALL_SPACING)
 		.Add(fApiKeyInput)
@@ -93,8 +162,20 @@ SettingsView::SettingsView()
 			.AddGlue()
 		.End()
 		.Add(fStatusLabel)
-		.AddStrut(B_USE_DEFAULT_SPACING)
+		.AddStrut(B_USE_SMALL_SPACING)
 		.Add(securityNotice)
+		.End();
+
+	// Main layout
+	BLayoutBuilder::Group<>(this, B_VERTICAL, B_USE_DEFAULT_SPACING)
+		.SetInsets(B_USE_WINDOW_SPACING)
+		.Add(prefsTitle)
+		.AddStrut(B_USE_SMALL_SPACING)
+		.Add(preferencesBox)
+		.AddStrut(B_USE_DEFAULT_SPACING)
+		.Add(title)
+		.AddStrut(B_USE_SMALL_SPACING)
+		.Add(binanceBox)
 		.AddStrut(B_USE_DEFAULT_SPACING)
 		.Add(instructionsBox)
 		.AddGlue()
@@ -107,17 +188,33 @@ SettingsView::~SettingsView() {
 void SettingsView::AttachedToWindow() {
 	BView::AttachedToWindow();
 
-	// Set message targets
+	// Set message targets - Preferences
+	fSavePreferencesButton->SetTarget(this);
+	if (fCurrencyMenu && fCurrencyMenu->Menu()) {
+		fCurrencyMenu->Menu()->SetTargetForItems(this);
+	}
+
+	// Set message targets - API Credentials
 	fSaveButton->SetTarget(this);
 	fDeleteButton->SetTarget(this);
 	fTestButton->SetTarget(this);
 
-	// Load existing credentials if any
+	// Load existing data
+	LoadPreferences();
 	LoadCredentials();
 }
 
 void SettingsView::MessageReceived(BMessage* message) {
 	switch (message->what) {
+		case MSG_SAVE_PREFERENCES:
+			SavePreferences();
+			break;
+
+		case MSG_CURRENCY_CHANGED:
+			// Auto-save when currency changes
+			UpdatePreferencesStatus("Currency selection changed (click Save to apply)", false);
+			break;
+
 		case MSG_SAVE_CREDENTIALS:
 			SaveCredentials();
 			break;
@@ -274,6 +371,121 @@ void SettingsView::UpdateStatus(const std::string& message, bool isError) {
 	}
 
 	fStatusLabel->Invalidate();
+}
+
+// === GENERAL PREFERENCES METHODS ===
+
+std::string SettingsView::GetSystemCurrency() {
+	// Try to detect from country code
+	BCountry country;
+	const char* countryCode = country.Code();
+
+	if (countryCode != nullptr) {
+		std::string code(countryCode);
+
+		// Map country codes to currencies
+		if (code == "US") return "USD";
+		if (code == "GB") return "GBP";
+		if (code == "JP") return "JPY";
+		if (code == "CH") return "CHF";
+		if (code == "AU") return "AUD";
+		if (code == "CA") return "CAD";
+		if (code == "CN") return "CNY";
+		if (code == "IN") return "INR";
+		if (code == "BR") return "BRL";
+
+		// EU countries
+		if (code == "DE" || code == "FR" || code == "IT" ||
+		    code == "ES" || code == "NL" || code == "BE" ||
+		    code == "AT" || code == "PT" || code == "IE" ||
+		    code == "GR" || code == "FI") {
+			return "EUR";
+		}
+	}
+
+	// Default to USD
+	LOG_INFO("System currency detection: defaulting to USD (country code: " +
+	         std::string(countryCode ? countryCode : "unknown") + ")");
+	return "USD";
+}
+
+void SettingsView::LoadPreferences() {
+	Config& config = Config::getInstance();
+
+	// Load saved currency preference
+	std::string savedCurrency = config.getCurrency();
+
+	// Set the menu to the saved currency
+	if (fCurrencyMenu && fCurrencyMenu->Menu()) {
+		BMenu* menu = fCurrencyMenu->Menu();
+		for (int i = 0; i < menu->CountItems(); i++) {
+			BMenuItem* item = menu->ItemAt(i);
+			if (item) {
+				const char* label = item->Label();
+				if (label && std::string(label).find(savedCurrency) == 0) {
+					item->SetMarked(true);
+					break;
+				}
+			}
+		}
+	}
+
+	UpdatePreferencesStatus("Preferences loaded", false);
+	LOG_INFO("Preferences loaded: Currency = " + savedCurrency);
+}
+
+void SettingsView::SavePreferences() {
+	Config& config = Config::getInstance();
+
+	// Get selected currency from menu
+	std::string selectedCurrency = "USD";  // Default
+	if (fCurrencyMenu && fCurrencyMenu->Menu()) {
+		BMenuItem* marked = fCurrencyMenu->Menu()->FindMarked();
+		if (marked) {
+			std::string label = marked->Label();
+			// Extract currency code (first 3 characters before " - ")
+			size_t pos = label.find(" - ");
+			if (pos != std::string::npos) {
+				selectedCurrency = label.substr(0, pos);
+			}
+		}
+	}
+
+	// Save currency preference
+	if (config.setCurrency(selectedCurrency)) {
+		if (config.save()) {
+			UpdatePreferencesStatus("Preferences saved successfully", false);
+
+			BAlert* alert = new BAlert("Success",
+				("Currency preference saved: " + selectedCurrency + "\n\n"
+				 "The application will use this currency for all displays.").c_str(),
+				"OK", nullptr, nullptr,
+				B_WIDTH_AS_USUAL, B_INFO_ALERT);
+			alert->Go();
+
+			LOG_INFO("Preferences saved: Currency = " + selectedCurrency);
+		} else {
+			UpdatePreferencesStatus("Failed to save preferences to file", true);
+		}
+	} else {
+		UpdatePreferencesStatus("Invalid currency selection", true);
+	}
+}
+
+void SettingsView::UpdatePreferencesStatus(const std::string& message, bool isError) {
+	fPreferencesStatusLabel->SetText(message.c_str());
+
+	// Set color based on status
+	if (isError) {
+		fPreferencesStatusLabel->SetHighColor(255, 0, 0);  // Red for errors
+	} else if (message.find("saved") != std::string::npos ||
+	           message.find("loaded") != std::string::npos) {
+		fPreferencesStatusLabel->SetHighColor(0, 128, 0);  // Green for success
+	} else {
+		fPreferencesStatusLabel->SetHighColor(0, 0, 0);  // Black for info
+	}
+
+	fPreferencesStatusLabel->Invalidate();
 }
 
 } // namespace UI
