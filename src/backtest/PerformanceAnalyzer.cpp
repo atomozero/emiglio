@@ -335,21 +335,34 @@ std::string PerformanceAnalyzer::generateJSONReport(const BacktestResult& result
 	json << "{\n";
 	json << "  \"strategy\": \"" << result.recipeName << "\",\n";
 	json << "  \"symbol\": \"" << result.symbol << "\",\n";
-	json << "  \"totalCandles\": " << result.totalCandles << ",\n";
+
+	// Period information
+	json << "  \"period\": {\n";
+	json << "    \"startTime\": " << result.startTime << ",\n";
+	json << "    \"endTime\": " << result.endTime << ",\n";
+	json << "    \"durationDays\": " << ((result.endTime - result.startTime) / 86400.0) << ",\n";
+	json << "    \"totalCandles\": " << result.totalCandles << "\n";
+	json << "  },\n";
+
 	json << "  \"capital\": {\n";
 	json << "    \"initial\": " << result.initialCapital << ",\n";
 	json << "    \"final\": " << result.finalEquity << ",\n";
-	json << "    \"peak\": " << result.peakEquity << "\n";
+	json << "    \"peak\": " << result.peakEquity << ",\n";
+	json << "    \"netProfit\": " << (result.finalEquity - result.initialCapital) << "\n";
 	json << "  },\n";
+
 	json << "  \"returns\": {\n";
 	json << "    \"totalReturn\": " << result.totalReturnPercent << ",\n";
 	json << "    \"annualizedReturn\": " << result.annualizedReturn << "\n";
 	json << "  },\n";
+
 	json << "  \"risk\": {\n";
 	json << "    \"maxDrawdown\": " << result.maxDrawdownPercent << ",\n";
+	json << "    \"maxDrawdownAmount\": " << (result.peakEquity - (result.peakEquity * (1.0 - result.maxDrawdownPercent / 100.0))) << ",\n";
 	json << "    \"sharpeRatio\": " << std::setprecision(3) << result.sharpeRatio << ",\n";
 	json << "    \"sortinoRatio\": " << result.sortinoRatio << "\n";
 	json << "  },\n";
+
 	json << "  \"trading\": {\n";
 	json << "    \"totalTrades\": " << result.totalTrades << ",\n";
 	json << "    \"winningTrades\": " << result.winningTrades << ",\n";
@@ -360,10 +373,80 @@ std::string PerformanceAnalyzer::generateJSONReport(const BacktestResult& result
 	json << "    \"averageWin\": " << result.averageWin << ",\n";
 	json << "    \"averageLoss\": " << result.averageLoss << "\n";
 	json << "  },\n";
+
 	json << "  \"costs\": {\n";
 	json << "    \"totalCommission\": " << result.totalCommission << ",\n";
-	json << "    \"totalSlippage\": " << result.totalSlippage << "\n";
-	json << "  }\n";
+	json << "    \"totalSlippage\": " << result.totalSlippage << ",\n";
+	json << "    \"totalCosts\": " << (result.totalCommission + result.totalSlippage) << "\n";
+	json << "  },\n";
+
+	// Calculate best/worst trade and streaks
+	double bestTrade = 0.0;
+	double worstTrade = 0.0;
+	int currentWinStreak = 0;
+	int currentLossStreak = 0;
+	int longestWinStreak = 0;
+	int longestLossStreak = 0;
+	double totalWinAmount = 0.0;
+	double totalLossAmount = 0.0;
+
+	for (const auto& trade : result.trades) {
+		if (trade.status == TradeStatus::CLOSED) {
+			// Best/worst trade
+			if (trade.pnl > bestTrade) bestTrade = trade.pnl;
+			if (trade.pnl < worstTrade) worstTrade = trade.pnl;
+
+			// Streaks
+			if (trade.pnl > 0) {
+				currentWinStreak++;
+				currentLossStreak = 0;
+				totalWinAmount += trade.pnl;
+				if (currentWinStreak > longestWinStreak) {
+					longestWinStreak = currentWinStreak;
+				}
+			} else {
+				currentLossStreak++;
+				currentWinStreak = 0;
+				totalLossAmount += trade.pnl;
+				if (currentLossStreak > longestLossStreak) {
+					longestLossStreak = currentLossStreak;
+				}
+			}
+		}
+	}
+
+	json << "  \"performance\": {\n";
+	json << "    \"bestTrade\": " << bestTrade << ",\n";
+	json << "    \"worstTrade\": " << worstTrade << ",\n";
+	json << "    \"totalWinAmount\": " << totalWinAmount << ",\n";
+	json << "    \"totalLossAmount\": " << totalLossAmount << ",\n";
+	json << "    \"longestWinStreak\": " << longestWinStreak << ",\n";
+	json << "    \"longestLossStreak\": " << longestLossStreak << "\n";
+	json << "  },\n";
+
+	// Trade list with all details
+	json << "  \"trades\": [\n";
+	bool firstTrade = true;
+	for (const auto& trade : result.trades) {
+		if (trade.status == TradeStatus::CLOSED) {
+			if (!firstTrade) json << ",\n";
+			firstTrade = false;
+
+			json << "    {\n";
+			json << "      \"id\": \"" << trade.id << "\",\n";
+			json << "      \"entryTime\": " << trade.entryTime << ",\n";
+			json << "      \"exitTime\": " << trade.exitTime << ",\n";
+			json << "      \"entryPrice\": " << trade.entryPrice << ",\n";
+			json << "      \"exitPrice\": " << trade.exitPrice << ",\n";
+			json << "      \"quantity\": " << std::setprecision(6) << trade.quantity << ",\n";
+			json << "      \"pnl\": " << std::setprecision(2) << trade.pnl << ",\n";
+			json << "      \"pnlPercent\": " << (trade.pnl / (trade.entryPrice * trade.quantity) * 100.0) << ",\n";
+			json << "      \"exitReason\": \"" << trade.exitReason << "\"\n";
+			json << "    }";
+		}
+	}
+	json << "\n  ]\n";
+
 	json << "}\n";
 
 	return json.str();
