@@ -1,6 +1,8 @@
 #include "DashboardView.h"
 #include "../data/DataStorage.h"
 #include "../utils/Logger.h"
+#include "../utils/CredentialManager.h"
+#include "../exchange/BinanceAPI.h"
 
 #include <LayoutBuilder.h>
 #include <GroupView.h>
@@ -24,8 +26,16 @@ namespace UI {
 DashboardView::DashboardView()
 	: BView("Dashboard", B_WILL_DRAW)
 	, autoRefreshRunner(nullptr)
+	, credentialManager(std::make_unique<CredentialManager>())
+	, binanceAPI(std::make_unique<BinanceAPI>())
 {
 	SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
+
+	// Initialize credential manager
+	if (!credentialManager->init("/boot/home/Emiglio/data/emilio.db")) {
+		LOG_ERROR("Failed to initialize CredentialManager in Dashboard");
+	}
+
 	BuildLayout();
 	RefreshData();
 }
@@ -38,6 +48,7 @@ void DashboardView::AttachedToWindow() {
 	BView::AttachedToWindow();
 
 	if (runBacktestButton) runBacktestButton->SetTarget(this);
+	if (refreshBinanceButton) refreshBinanceButton->SetTarget(this);
 
 	// Start auto-refresh timer (every 5 seconds)
 	BMessage refreshMsg(MSG_AUTO_REFRESH);
@@ -99,6 +110,23 @@ void DashboardView::BuildLayout() {
 		.Add(candlesCountLabel)
 		.End();
 
+	// Binance Portfolio section
+	binanceStatusLabel = new BStringView("", "Not connected");
+	binanceBalancesView = new BListView("binance_balances");
+	binanceBalancesScroll = new BScrollView("binance_scroll", binanceBalancesView,
+	                                        0, false, true);
+	refreshBinanceButton = new BButton("Refresh", new BMessage(MSG_REFRESH_BINANCE));
+
+	BBox* binanceBox = new BBox("binance_box");
+	binanceBox->SetLabel("Binance Portfolio");
+
+	BLayoutBuilder::Group<>(binanceBox, B_VERTICAL, B_USE_SMALL_SPACING)
+		.SetInsets(B_USE_DEFAULT_SPACING)
+		.Add(binanceStatusLabel)
+		.Add(binanceBalancesScroll)
+		.Add(refreshBinanceButton)
+		.End();
+
 	// Recent backtests section
 	recentBacktestsView = new BListView("recent_backtests");
 	recentBacktestsScroll = new BScrollView("recent_scroll", recentBacktestsView,
@@ -124,7 +152,10 @@ void DashboardView::BuildLayout() {
 			.Add(portfolioBox, 1)
 			.Add(statsBox, 1)
 		.End()
-		.Add(recentBox, 2)
+		.AddGroup(B_HORIZONTAL, B_USE_DEFAULT_SPACING)
+			.Add(binanceBox, 1)
+			.Add(recentBox, 1)
+		.End()
 		.AddGroup(B_HORIZONTAL)
 			.Add(runBacktestButton)
 			.AddGlue()
@@ -143,6 +174,10 @@ void DashboardView::MessageReceived(BMessage* message) {
 			LOG_INFO("Switching to Backtest tab...");
 			break;
 
+		case MSG_REFRESH_BINANCE:
+			LoadBinancePortfolio();
+			break;
+
 		default:
 			BView::MessageReceived(message);
 			break;
@@ -151,6 +186,7 @@ void DashboardView::MessageReceived(BMessage* message) {
 
 void DashboardView::RefreshData() {
 	LoadPortfolioStats();
+	LoadBinancePortfolio();
 	LoadRecentBacktests();
 }
 
@@ -326,6 +362,94 @@ void DashboardView::LoadRecentBacktests() {
 	backtestsCountLabel->SetText(countStr.str().c_str());
 
 	LOG_INFO("Loaded " + std::to_string(results.size()) + " backtest results");
+}
+
+void DashboardView::LoadBinancePortfolio() {
+	binanceBalancesView->MakeEmpty();
+
+	// Check if credentials exist
+	if (!credentialManager->hasCredentials("binance")) {
+		binanceStatusLabel->SetText("⚠️ Not configured");
+		binanceStatusLabel->SetHighColor(200, 100, 0); // Orange
+		binanceBalancesView->AddItem(new BStringItem("No Binance API credentials configured."));
+		binanceBalancesView->AddItem(new BStringItem(""));
+		binanceBalancesView->AddItem(new BStringItem("Go to Settings tab to configure your API keys."));
+		return;
+	}
+
+	// Load credentials
+	std::string apiKey, apiSecret;
+	if (!credentialManager->loadCredentials("binance", apiKey, apiSecret)) {
+		binanceStatusLabel->SetText("⚠️ Failed to load credentials");
+		binanceStatusLabel->SetHighColor(200, 0, 0); // Red
+		binanceBalancesView->AddItem(new BStringItem("Failed to decrypt credentials."));
+		LOG_ERROR("Failed to load Binance credentials: " + credentialManager->getLastError());
+		return;
+	}
+
+	// Initialize Binance API
+	if (!binanceAPI->init(apiKey, apiSecret)) {
+		binanceStatusLabel->SetText("⚠️ API initialization failed");
+		binanceStatusLabel->SetHighColor(200, 0, 0); // Red
+		binanceBalancesView->AddItem(new BStringItem("Failed to initialize Binance API."));
+		LOG_ERROR("Failed to initialize BinanceAPI");
+		return;
+	}
+
+	binanceStatusLabel->SetText("🔄 Loading...");
+	binanceStatusLabel->SetHighColor(0, 0, 0); // Black
+	binanceStatusLabel->Invalidate();
+
+	// Fetch balances
+	std::vector<Balance> balances = binanceAPI->getBalances();
+
+	if (balances.empty()) {
+		binanceStatusLabel->SetText("ℹ️ No balances");
+		binanceStatusLabel->SetHighColor(0, 100, 200); // Blue
+		binanceBalancesView->AddItem(new BStringItem("No cryptocurrency holdings found."));
+		binanceBalancesView->AddItem(new BStringItem(""));
+		binanceBalancesView->AddItem(new BStringItem("Your Binance account appears to be empty."));
+		LOG_INFO("No balances found in Binance account");
+		return;
+	}
+
+	// Sort balances by total value (descending)
+	std::sort(balances.begin(), balances.end(),
+	          [](const Balance& a, const Balance& b) {
+		          return a.total > b.total;
+	          });
+
+	// Display balances
+	binanceStatusLabel->SetText("✓ Connected");
+	binanceStatusLabel->SetHighColor(0, 150, 0); // Green
+
+	// Add header
+	binanceBalancesView->AddItem(new BStringItem("Asset Holdings:"));
+	binanceBalancesView->AddItem(new BStringItem(""));
+
+	// Display each balance
+	for (const auto& balance : balances) {
+		std::ostringstream item;
+		item << std::fixed << std::setprecision(8);
+
+		// Format: ASSET: 123.45678900 (Free: 100.00, Locked: 23.45678900)
+		item << balance.asset << ": " << balance.total;
+
+		if (balance.locked > 0) {
+			item << std::setprecision(8);
+			item << " (Free: " << balance.free << ", Locked: " << balance.locked << ")";
+		}
+
+		binanceBalancesView->AddItem(new BStringItem(item.str().c_str()));
+	}
+
+	// Add summary
+	binanceBalancesView->AddItem(new BStringItem(""));
+	std::ostringstream summary;
+	summary << "Total: " << balances.size() << " different assets";
+	binanceBalancesView->AddItem(new BStringItem(summary.str().c_str()));
+
+	LOG_INFO("Loaded " + std::to_string(balances.size()) + " Binance balances");
 }
 
 } // namespace UI

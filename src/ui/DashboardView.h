@@ -5,12 +5,18 @@
 #include <StringView.h>
 #include <MessageRunner.h>
 #include <string>
+#include <memory>
 
 class BListView;
 class BScrollView;
 class BButton;
 
 namespace Emiglio {
+
+// Forward declarations
+class CredentialManager;
+class BinanceAPI;
+
 namespace UI {
 
 // Dashboard view - shows overview of system
@@ -30,13 +36,20 @@ private:
 	void BuildLayout();
 	void LoadRecentBacktests();
 	void LoadPortfolioStats();
+	void LoadBinancePortfolio();
 
-	// Portfolio stats
+	// Portfolio stats (paper trading/backtest)
 	BStringView* totalCapitalLabel;
 	BStringView* availableCashLabel;
 	BStringView* investedLabel;
 	BStringView* totalPnLLabel;
 	BStringView* totalPnLPercentLabel;
+
+	// Binance portfolio
+	BStringView* binanceStatusLabel;
+	BListView* binanceBalancesView;
+	BScrollView* binanceBalancesScroll;
+	BButton* refreshBinanceButton;
 
 	// System stats
 	BStringView* recipesCountLabel;
@@ -53,9 +66,14 @@ private:
 	// Auto-refresh
 	BMessageRunner* autoRefreshRunner;
 
+	// Binance API
+	std::unique_ptr<CredentialManager> credentialManager;
+	std::unique_ptr<BinanceAPI> binanceAPI;
+
 	enum {
 		MSG_AUTO_REFRESH = 'arfr',
-		MSG_RUN_BACKTEST = 'rbkt'
+		MSG_RUN_BACKTEST = 'rbkt',
+		MSG_REFRESH_BINANCE = 'rfbn'
 	};
 };
 
