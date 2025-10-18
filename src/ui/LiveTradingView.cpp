@@ -99,7 +99,7 @@ LiveTradingView::LiveTradingView()
 	: BView("Live Trading", B_WILL_DRAW)
 	, webSocket(nullptr)
 	, paperPortfolio(std::make_unique<Paper::PaperPortfolio>(10000.0))
-	, currentSymbol("BTCUSDT")
+	, currentSymbol("BTC" + Config::getInstance().getPreferredQuote())
 	, isConnected(false)
 	, lastTradePrice(0.0)
 	, lastTradeTime(0)
@@ -147,9 +147,14 @@ void LiveTradingView::BuildLayout() {
 
 	// Connection status
 	connectionStatusLabel = new BStringView("", "Status: Disconnected");
-	balanceLabel = new BStringView("", "Balance: $10,000.00");
-	equityLabel = new BStringView("", "Equity: $10,000.00");
-	pnlLabel = new BStringView("", "P&L: $0.00 (0.00%)");
+
+	// Get user's preferred currency symbol for initial display
+	Config& config = Config::getInstance();
+	std::string currencySymbol = config.getCurrencySymbol();
+
+	balanceLabel = new BStringView("", ("Balance: " + currencySymbol + "10,000.00").c_str());
+	equityLabel = new BStringView("", ("Equity: " + currencySymbol + "10,000.00").c_str());
+	pnlLabel = new BStringView("", ("P&L: " + currencySymbol + "0.00 (0.00%)").c_str());
 
 	// Market data display
 	priceLabel = new BStringView("", "Price: --");
@@ -185,8 +190,7 @@ void LiveTradingView::BuildLayout() {
 
 	BPopUpMenu* quotePopup = new BPopUpMenu("Quote");
 
-	// Get user's preferred quote from settings
-	Config& config = Config::getInstance();
+	// Get user's preferred quote from settings (config already declared above)
 	std::string preferredQuote = config.getPreferredQuote();
 
 	// Add user's preferred quote first, then others
@@ -850,14 +854,18 @@ void LiveTradingView::UpdateBalanceLabels() {
 	double totalPnL = paperPortfolio->getTotalPnL();
 	double totalPnLPercent = paperPortfolio->getTotalPnLPercent();
 
+	// Get user's preferred currency symbol
+	Config& config = Config::getInstance();
+	std::string currencySymbol = config.getCurrencySymbol();
+
 	// Update balance label
 	std::ostringstream balanceOss;
-	balanceOss << "Balance: $" << std::fixed << std::setprecision(2) << balance;
+	balanceOss << "Balance: " << currencySymbol << std::fixed << std::setprecision(2) << balance;
 	balanceLabel->SetText(balanceOss.str().c_str());
 
 	// Update equity label
 	std::ostringstream equityOss;
-	equityOss << "Equity: $" << std::fixed << std::setprecision(2) << equity;
+	equityOss << "Equity: " << currencySymbol << std::fixed << std::setprecision(2) << equity;
 	equityLabel->SetText(equityOss.str().c_str());
 
 	// Update P&L label with color
@@ -869,7 +877,7 @@ void LiveTradingView::UpdateBalanceLabels() {
 	} else {
 		pnlLabel->SetHighColor(200, 0, 0); // Red
 	}
-	pnlOss << "$" << std::fixed << std::setprecision(2) << totalPnL
+	pnlOss << currencySymbol << std::fixed << std::setprecision(2) << totalPnL
 	       << " (" << std::setprecision(2) << totalPnLPercent << "%)";
 	pnlLabel->SetText(pnlOss.str().c_str());
 

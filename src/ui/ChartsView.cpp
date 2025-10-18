@@ -558,7 +558,7 @@ void CandlestickChartView::DrawLegend(BRect bounds) {
 ChartsView::ChartsView()
 	: BView("Charts", B_WILL_DRAW)
 	, chartView(nullptr)
-	, currentSymbol("BTCUSDT")
+	, currentSymbol("BTC" + Config::getInstance().getPreferredQuote())
 	, currentTimeframe("1h")
 	, currentExchange("binance")
 	, downloadThread(-1)

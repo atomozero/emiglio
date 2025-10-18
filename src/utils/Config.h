@@ -76,6 +76,26 @@ public:
 		return "USDT";
 	}
 
+	// Get currency symbol for display (e.g., "$" for USD, "€" for EUR)
+	std::string getCurrencySymbol() const {
+		std::string currency = getCurrency();
+		if (currency == "USD") return "$";
+		if (currency == "EUR") return "€";
+		if (currency == "GBP") return "£";
+		if (currency == "JPY") return "¥";
+		if (currency == "CNY") return "¥";
+		if (currency == "INR") return "₹";
+		if (currency == "KRW") return "₩";
+		if (currency == "AUD") return "A$";
+		if (currency == "CAD") return "C$";
+		if (currency == "CHF") return "Fr";
+		if (currency == "BRL") return "R$";
+		if (currency == "MXN") return "Mex$";
+		if (currency == "RUB") return "₽";
+		// Default to dollar sign
+		return "$";
+	}
+
 	// Save to default location
 	bool save() { return save(getConfigDir() + "/config.json"); }
 

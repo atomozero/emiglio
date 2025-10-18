@@ -1,6 +1,7 @@
 #include "DashboardView.h"
 #include "../data/DataStorage.h"
 #include "../utils/Logger.h"
+#include "../utils/Config.h"
 #include "../utils/CredentialManager.h"
 #include "../exchange/BinanceAPI.h"
 
@@ -84,10 +85,14 @@ void DashboardView::BuildLayout() {
 	simulatedWarning->SetFont(&warningFont);
 	simulatedWarning->SetHighColor(150, 100, 0); // Orange warning color
 
-	totalCapitalLabel = new BStringView("", "Total Capital: $0.00");
-	availableCashLabel = new BStringView("", "Available Cash: $0.00");
-	investedLabel = new BStringView("", "Invested: $0.00");
-	totalPnLLabel = new BStringView("", "Total P&L: $0.00");
+	// Get user's preferred currency symbol for initial display
+	Config& config = Config::getInstance();
+	std::string currencySymbol = config.getCurrencySymbol();
+
+	totalCapitalLabel = new BStringView("", ("Total Capital: " + currencySymbol + "0.00").c_str());
+	availableCashLabel = new BStringView("", ("Available Cash: " + currencySymbol + "0.00").c_str());
+	investedLabel = new BStringView("", ("Invested: " + currencySymbol + "0.00").c_str());
+	totalPnLLabel = new BStringView("", ("Total P&L: " + currencySymbol + "0.00").c_str());
 	totalPnLPercentLabel = new BStringView("", "Total P&L %: 0.00%");
 
 	BFont labelFont(be_plain_font);
@@ -157,7 +162,7 @@ void DashboardView::BuildLayout() {
 	realSummaryLabel->SetFont(&realSummaryFont);
 	realSummaryLabel->SetHighColor(0, 120, 0); // Dark green
 
-	realTotalValueLabel = new BStringView("", "Total Value: $0.00");
+	realTotalValueLabel = new BStringView("", ("Total Value: " + currencySymbol + "0.00").c_str());
 	realExchangeCountLabel = new BStringView("", "Active Exchanges: 0");
 	realLastUpdateLabel = new BStringView("", "Last Update: Never");
 
@@ -330,23 +335,25 @@ void DashboardView::LoadPortfolioStats() {
 	double pnl = currentCapital - initialCapital;
 	double pnlPercent = (pnl / initialCapital) * 100.0;
 
-	// Format values
+	// Format values with user's preferred currency symbol
+	Config& config = Config::getInstance();
+	std::string currencySymbol = config.getCurrencySymbol();
 	std::ostringstream oss;
 
 	oss.str("");
-	oss << "Total Capital: $" << std::fixed << std::setprecision(2) << currentCapital;
+	oss << "Total Capital: " << currencySymbol << std::fixed << std::setprecision(2) << currentCapital;
 	totalCapitalLabel->SetText(oss.str().c_str());
 
 	oss.str("");
-	oss << "Available Cash: $" << std::fixed << std::setprecision(2) << availableCash;
+	oss << "Available Cash: " << currencySymbol << std::fixed << std::setprecision(2) << availableCash;
 	availableCashLabel->SetText(oss.str().c_str());
 
 	oss.str("");
-	oss << "Invested: $" << std::fixed << std::setprecision(2) << invested;
+	oss << "Invested: " << currencySymbol << std::fixed << std::setprecision(2) << invested;
 	investedLabel->SetText(oss.str().c_str());
 
 	oss.str("");
-	oss << "Total P&L: $" << std::fixed << std::setprecision(2) << pnl;
+	oss << "Total P&L: " << currencySymbol << std::fixed << std::setprecision(2) << pnl;
 	totalPnLLabel->SetText(oss.str().c_str());
 
 	// Color code P&L
@@ -652,11 +659,13 @@ void DashboardView::LoadRealPortfolioSummary() {
 	// if (credentialManager->hasCredentials("coinbase")) { ... }
 	// if (credentialManager->hasCredentials("kraken")) { ... }
 
-	// Update labels
+	// Update labels with user's preferred currency symbol
+	Config& config = Config::getInstance();
+	std::string currencySymbol = config.getCurrencySymbol();
 	std::ostringstream oss;
 
 	oss.str("");
-	oss << "Total Value: $" << std::fixed << std::setprecision(2) << totalValue;
+	oss << "Total Value: " << currencySymbol << std::fixed << std::setprecision(2) << totalValue;
 	if (totalValue == 0.0) {
 		oss << " (approx, price conversion needed)";
 	}
@@ -684,7 +693,7 @@ void DashboardView::LoadRealPortfolioSummary() {
 	}
 	realLastUpdateLabel->SetText(oss.str().c_str());
 
-	LOG_INFO("Real portfolio summary: $" + std::to_string(totalValue) + " across " + std::to_string(activeExchanges) + " exchanges");
+	LOG_INFO("Real portfolio summary: " + currencySymbol + std::to_string(totalValue) + " across " + std::to_string(activeExchanges) + " exchanges");
 }
 
 } // namespace UI
