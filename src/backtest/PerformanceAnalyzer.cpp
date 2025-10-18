@@ -332,9 +332,36 @@ std::string PerformanceAnalyzer::generateJSONReport(const BacktestResult& result
 
 	json << std::fixed << std::setprecision(2);
 
+	// Split symbol into base and quote (e.g., BTCUSDT -> BTC + USDT)
+	std::string base = "";
+	std::string quote = "";
+	std::string symbol = result.symbol;
+
+	// Common quote currencies
+	std::vector<std::string> quoteCoins = {"USDT", "USDC", "BUSD", "USD", "EUR", "BTC", "ETH", "BNB"};
+
+	for (const auto& quoteCoin : quoteCoins) {
+		if (symbol.length() > quoteCoin.length() &&
+		    symbol.substr(symbol.length() - quoteCoin.length()) == quoteCoin) {
+			quote = quoteCoin;
+			base = symbol.substr(0, symbol.length() - quoteCoin.length());
+			break;
+		}
+	}
+
+	// Fallback if no match found
+	if (base.empty()) {
+		base = symbol;
+		quote = "UNKNOWN";
+	}
+
 	json << "{\n";
 	json << "  \"strategy\": \"" << result.recipeName << "\",\n";
-	json << "  \"symbol\": \"" << result.symbol << "\",\n";
+	json << "  \"symbol\": {\n";
+	json << "    \"full\": \"" << result.symbol << "\",\n";
+	json << "    \"base\": \"" << base << "\",\n";
+	json << "    \"quote\": \"" << quote << "\"\n";
+	json << "  },\n";
 
 	// Period information
 	json << "  \"period\": {\n";

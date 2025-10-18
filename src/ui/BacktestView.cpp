@@ -41,7 +41,10 @@ BacktestView::BacktestView()
 	: BView("Backtest", B_WILL_DRAW)
 	, recipeField(nullptr)
 	, recipeMenu(nullptr)
-	, symbolControl(nullptr)
+	, baseAssetField(nullptr)
+	, baseAssetMenu(nullptr)
+	, quoteAssetField(nullptr)
+	, quoteAssetMenu(nullptr)
 	, initialCapitalControl(nullptr)
 	, commissionControl(nullptr)
 	, slippageControl(nullptr)
@@ -109,7 +112,10 @@ void BacktestView::SetupUI() {
 				// Configuration section
 				.AddGroup(B_VERTICAL, 5)
 					.Add(recipeField)
-					.Add(symbolControl)
+					.AddGroup(B_HORIZONTAL, 5)
+						.Add(baseAssetField)
+						.Add(quoteAssetField)
+						.End()
 					.Add(initialCapitalControl)
 					.Add(commissionControl)
 					.Add(slippageControl)
@@ -140,8 +146,37 @@ void BacktestView::SetupConfigPanel() {
 	recipeMenu = new BPopUpMenu("Select Recipe");
 	recipeField = new BMenuField("recipe", "Recipe:", recipeMenu);
 
-	// Symbol
-	symbolControl = new BTextControl("symbol", "Symbol:", "BTCUSDT", nullptr);
+	// Base asset selector (most popular cryptocurrencies)
+	baseAssetMenu = new BPopUpMenu("Select Base");
+	const char* baseAssets[] = {
+		"BTC", "ETH", "BNB", "ADA", "XRP", "SOL", "DOT", "DOGE",
+		"AVAX", "MATIC", "LINK", "UNI", "ATOM", "LTC", "ETC", "XLM",
+		"ALGO", "VET", "FIL", "TRX", "AAVE", "SAND", "MANA", "AXS"
+	};
+	for (const char* asset : baseAssets) {
+		BMessage* msg = new BMessage(MSG_BASE_SELECTED);
+		msg->AddString("asset", asset);
+		BMenuItem* item = new BMenuItem(asset, msg);
+		item->SetTarget(this);
+		baseAssetMenu->AddItem(item);
+	}
+	baseAssetMenu->ItemAt(0)->SetMarked(true); // BTC default
+	baseAssetField = new BMenuField("base", "Base:", baseAssetMenu);
+
+	// Quote asset selector (stablecoins and major currencies)
+	quoteAssetMenu = new BPopUpMenu("Select Quote");
+	const char* quoteAssets[] = {
+		"USDT", "USDC", "BUSD", "USD", "EUR", "BTC", "ETH", "BNB"
+	};
+	for (const char* asset : quoteAssets) {
+		BMessage* msg = new BMessage(MSG_QUOTE_SELECTED);
+		msg->AddString("asset", asset);
+		BMenuItem* item = new BMenuItem(asset, msg);
+		item->SetTarget(this);
+		quoteAssetMenu->AddItem(item);
+	}
+	quoteAssetMenu->ItemAt(0)->SetMarked(true); // USDT default
+	quoteAssetField = new BMenuField("quote", "Quote:", quoteAssetMenu);
 
 	// Initial capital
 	initialCapitalControl = new BTextControl("capital", "Initial Capital:", "10000", nullptr);
@@ -374,7 +409,18 @@ void BacktestView::RunBacktest() {
 		double initialCapital = std::stod(initialCapitalControl->Text());
 		double commissionPercent = std::stod(commissionControl->Text()) / 100.0;
 		double slippagePercent = std::stod(slippageControl->Text()) / 100.0;
-		std::string symbol = symbolControl->Text();
+
+		// Get base and quote from menus
+		BMenuItem* baseItem = baseAssetMenu->FindMarked();
+		BMenuItem* quoteItem = quoteAssetMenu->FindMarked();
+
+		if (!baseItem || !quoteItem) {
+			throw std::runtime_error("Please select both base and quote assets");
+		}
+
+		std::string base = baseItem->Label();
+		std::string quote = quoteItem->Label();
+		std::string symbol = base + quote;
 
 		// Configure backtest
 		Backtest::BacktestConfig config;

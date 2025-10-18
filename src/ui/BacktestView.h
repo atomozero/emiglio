@@ -32,7 +32,9 @@ enum {
 	MSG_BACKTEST_EXPORT = 'btex',
 	MSG_RECIPE_SELECTED = 'rcps',
 	MSG_BACKTEST_COMPLETE = 'btcp',
-	MSG_TRADE_SELECTED = 'trds'
+	MSG_TRADE_SELECTED = 'trds',
+	MSG_BASE_SELECTED = 'bass',
+	MSG_QUOTE_SELECTED = 'qots'
 };
 
 // Custom column list view that sends selection message on single click
@@ -77,7 +79,10 @@ private:
 	// Config controls
 	BMenuField* recipeField;
 	BPopUpMenu* recipeMenu;
-	BTextControl* symbolControl;
+	BMenuField* baseAssetField;
+	BPopUpMenu* baseAssetMenu;
+	BMenuField* quoteAssetField;
+	BPopUpMenu* quoteAssetMenu;
 	BTextControl* initialCapitalControl;
 	BTextControl* commissionControl;
 	BTextControl* slippageControl;
