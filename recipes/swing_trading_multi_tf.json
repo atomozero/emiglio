@@ -1,216 +1,98 @@
 {
   "name": "Swing Trading Multi-Timeframe BTC",
-  "version": "1.0",
   "description": "Swing trading strategy using multiple timeframes for confirmation. Trades the higher timeframe trend with lower timeframe entry signals.",
-  "author": "Emiglio",
-  "created": "2025-10-16",
-
   "market": {
     "exchange": "binance",
     "symbol": "BTC/USDT",
-    "timeframe": "4h",
-    "higher_timeframe": "1d",
-    "lower_timeframe": "1h",
-    "comment": "Primary 4h, confirm on daily, enter on hourly"
+    "timeframe": "4h"
   },
-
   "capital": {
     "initial": 10000,
-    "position_size_percent": 15,
-    "max_open_positions": 2,
-    "comment": "Larger positions for swing trades with longer holding periods"
+    "positionSizePercent": 15
   },
-
-  "risk_management": {
-    "stop_loss_percent": 4.0,
-    "take_profit_percent": 12.0,
-    "trailing_stop": true,
-    "trailing_stop_percent": 3.0,
-    "max_daily_loss_percent": 6.0,
-    "risk_reward_ratio": 3.0,
-    "comment": "3:1 risk-reward ratio for swing trades"
+  "risk": {
+    "stopLossPercent": 4.0,
+    "takeProfitPercent": 12.0,
+    "maxDailyLossPercent": 6.0,
+    "maxOpenPositions": 2
   },
-
   "indicators": [
     {
       "name": "ema",
-      "timeframe": "1d",
-      "periods": [21, 50],
-      "comment": "Daily EMAs for major trend"
+      "period": 21,
+      "params": {}
     },
     {
       "name": "ema",
-      "timeframe": "4h",
-      "periods": [9, 21, 50],
-      "comment": "4h EMAs for intermediate trend"
+      "period": 50,
+      "params": {}
     },
     {
       "name": "rsi",
-      "timeframe": "4h",
       "period": 14,
-      "comment": "4h RSI for momentum"
+      "params": {}
     },
     {
       "name": "macd",
-      "timeframe": "4h",
-      "fast_period": 12,
-      "slow_period": 26,
-      "signal_period": 9,
-      "comment": "MACD for trend confirmation"
+      "period": 26,
+      "params": {
+        "fast_period": 12,
+        "slow_period": 26,
+        "signal_period": 9
+      }
     },
     {
-      "name": "bollinger_bands",
-      "timeframe": "1h",
+      "name": "bollinger",
       "period": 20,
-      "std_dev": 2,
-      "comment": "Hourly BB for entry timing"
-    },
-    {
-      "name": "volume_sma",
-      "timeframe": "4h",
-      "period": 20,
-      "comment": "Volume confirmation"
+      "params": {
+        "std_dev": 2
+      }
     }
   ],
-
-  "entry_conditions": {
+  "entryConditions": {
     "logic": "AND",
-    "comment": "All timeframes must align before entry",
     "rules": [
       {
-        "timeframe": "1d",
-        "indicator": "ema_21",
-        "operator": ">",
-        "reference": "ema_50",
-        "description": "Daily uptrend confirmed (21 EMA above 50 EMA)"
-      },
-      {
-        "timeframe": "4h",
         "indicator": "close",
-        "operator": ">",
-        "reference": "ema_50",
-        "description": "Price above 4h 50 EMA (medium-term uptrend)"
-      },
-      {
-        "timeframe": "4h",
-        "indicator": "ema_9",
-        "operator": "crosses_above",
-        "reference": "ema_21",
-        "description": "4h short-term EMA crossover signal"
-      },
-      {
-        "timeframe": "4h",
-        "indicator": "macd",
         "operator": ">",
         "value": 0,
-        "description": "MACD bullish"
+        "compareWith": "ema_50"
       },
       {
-        "timeframe": "4h",
-        "indicator": "rsi",
-        "operator": "between",
-        "lower_value": 45,
-        "upper_value": 70,
-        "description": "RSI in healthy range (not overbought)"
-      },
-      {
-        "timeframe": "1h",
-        "indicator": "close",
-        "operator": "touches",
-        "reference": "bb_middle",
-        "description": "Hourly pullback to BB middle (entry point)"
-      },
-      {
-        "timeframe": "4h",
-        "indicator": "volume",
+        "indicator": "ema_21",
         "operator": ">",
-        "reference": "volume_sma",
-        "multiplier": 1.2,
-        "description": "Above average volume confirms move"
+        "value": 0,
+        "compareWith": "ema_50"
+      },
+      {
+        "indicator": "rsi",
+        "operator": ">",
+        "value": 45,
+        "compareWith": ""
+      },
+      {
+        "indicator": "rsi",
+        "operator": "<",
+        "value": 70,
+        "compareWith": ""
       }
     ]
   },
-
-  "exit_conditions": {
+  "exitConditions": {
     "logic": "OR",
     "rules": [
       {
-        "type": "take_profit",
-        "description": "Take profit target reached (+12%)"
-      },
-      {
-        "type": "trailing_stop",
-        "description": "Trailing stop triggered"
-      },
-      {
-        "timeframe": "4h",
-        "indicator": "ema_9",
-        "operator": "crosses_below",
-        "reference": "ema_21",
-        "description": "4h EMA bearish crossover (trend reversal)"
-      },
-      {
-        "timeframe": "4h",
         "indicator": "rsi",
         "operator": ">",
         "value": 75,
-        "description": "Overbought on 4h - take profits"
+        "compareWith": ""
       },
       {
-        "timeframe": "4h",
-        "indicator": "macd",
-        "operator": "crosses_below",
-        "reference": "macd_signal",
-        "description": "MACD bearish crossover"
-      },
-      {
-        "timeframe": "1d",
         "indicator": "close",
         "operator": "<",
-        "reference": "ema_21",
-        "consecutive_candles": 2,
-        "description": "Lost daily trend support"
+        "value": 0,
+        "compareWith": "ema_21"
       }
     ]
-  },
-
-  "position_management": {
-    "scale_in": false,
-    "scale_out": true,
-    "scale_out_levels": [
-      {"price_gain_percent": 6, "sell_percent": 30},
-      {"price_gain_percent": 9, "sell_percent": 30},
-      {"price_gain_percent": 12, "sell_percent": 40}
-    ],
-    "comment": "Take partial profits at key levels, let winners run"
-  },
-
-  "notifications": {
-    "on_entry": true,
-    "on_exit": true,
-    "on_partial_exit": true,
-    "on_trend_change": true,
-    "on_error": true,
-    "channels": ["ui", "log"]
-  },
-
-  "backtest_config": {
-    "start_date": "2024-01-01",
-    "end_date": "2025-10-01",
-    "commission": 0.001,
-    "slippage": 0.0008,
-    "comment": "Longer backtest period to evaluate swing performance"
-  },
-
-  "notes": [
-    "Multi-timeframe analysis reduces false signals",
-    "Higher timeframe defines trend, lower timeframe refines entry",
-    "Requires patience - may wait days/weeks for perfect setup",
-    "Best in trending markets with periodic pullbacks",
-    "Avoid overtrading - quality over quantity",
-    "Hold time typically 3-14 days per swing",
-    "Consider market news and events that may impact swings",
-    "Monitor correlation with broader crypto market",
-    "Scale out strategy helps lock in profits while riding trends"
-  ]
+  }
 }

@@ -1,130 +1,66 @@
 {
   "name": "Grid Trading BTC/USDT",
-  "version": "1.0",
   "description": "Grid trading strategy that places multiple buy and sell orders at different price levels to profit from market volatility. Works best in ranging markets.",
-  "author": "Emiglio",
-  "created": "2025-10-16",
-
   "market": {
     "exchange": "binance",
     "symbol": "BTC/USDT",
-    "timeframe": "15m",
-    "comment": "15-minute timeframe for responsive grid management"
+    "timeframe": "15m"
   },
-
   "capital": {
     "initial": 10000,
-    "position_size_percent": 5,
-    "max_open_positions": 10,
-    "comment": "Multiple small positions spread across grid levels"
+    "positionSizePercent": 5
   },
-
-  "grid_config": {
-    "grid_levels": 10,
-    "grid_spacing_percent": 1.5,
-    "center_price_strategy": "current",
-    "comment": "10 levels with 1.5% spacing between each level"
+  "risk": {
+    "stopLossPercent": 5.0,
+    "takeProfitPercent": 3.0,
+    "maxDailyLossPercent": 10.0,
+    "maxOpenPositions": 10
   },
-
-  "risk_management": {
-    "stop_loss_percent": 5.0,
-    "take_profit_percent": 3.0,
-    "max_daily_loss_percent": 10.0,
-    "trailing_stop": false,
-    "comment": "Conservative stop loss with smaller take profit for grid strategy"
-  },
-
   "indicators": [
     {
       "name": "sma",
       "period": 50,
-      "comment": "Used to determine market trend"
+      "params": {}
     },
     {
       "name": "atr",
       "period": 14,
-      "comment": "Average True Range for volatility measurement"
+      "params": {}
     },
     {
-      "name": "bollinger_bands",
+      "name": "bollinger",
       "period": 20,
-      "std_dev": 2,
-      "comment": "To define grid boundaries"
+      "params": {
+        "std_dev": 2
+      }
     }
   ],
-
-  "entry_conditions": {
+  "entryConditions": {
     "logic": "AND",
     "rules": [
       {
         "indicator": "close",
-        "operator": "between",
-        "lower_bound": "bb_lower",
-        "upper_bound": "bb_upper",
-        "description": "Price within Bollinger Bands (ranging market)"
-      },
-      {
-        "indicator": "atr",
         "operator": ">",
-        "value": 500,
-        "description": "Sufficient volatility for grid trading"
+        "value": 0,
+        "compareWith": "bb_lower"
       },
       {
-        "type": "grid_level_available",
-        "description": "Open grid level available for new order"
+        "indicator": "close",
+        "operator": "<",
+        "value": 0,
+        "compareWith": "bb_upper"
       }
-    ],
-    "comment": "Grid orders placed when price is ranging and volatility is adequate"
+    ]
   },
-
-  "exit_conditions": {
+  "exitConditions": {
     "logic": "OR",
     "rules": [
       {
-        "type": "grid_target_reached",
-        "description": "Take profit at next grid level"
-      },
-      {
-        "type": "stop_loss",
-        "description": "Stop loss triggered"
-      },
-      {
         "indicator": "close",
-        "operator": "crosses_below",
-        "reference": "bb_lower",
-        "description": "Price breaks below range (exit all positions)"
-      },
-      {
-        "indicator": "close",
-        "operator": "crosses_above",
-        "reference": "bb_upper",
-        "description": "Price breaks above range (exit all positions)"
+        "operator": ">",
+        "value": 0,
+        "compareWith": "bb_upper"
       }
-    ],
-    "comment": "Exit at grid levels or when market breaks out of range"
-  },
-
-  "notifications": {
-    "on_entry": true,
-    "on_exit": true,
-    "on_grid_fill": true,
-    "on_error": true,
-    "channels": ["ui", "log"]
-  },
-
-  "backtest_config": {
-    "start_date": "2024-06-01",
-    "end_date": "2025-10-01",
-    "commission": 0.001,
-    "slippage": 0.0005,
-    "comment": "Test on 4 months of data to evaluate performance in different market conditions"
-  },
-
-  "notes": [
-    "Grid trading profits from volatility in ranging markets",
-    "Best performance when market oscillates without strong trend",
-    "Requires active management and position monitoring",
-    "Consider wider grid spacing in highly volatile markets",
-    "May underperform in strong trending markets"
-  ]
+    ]
+  }
 }

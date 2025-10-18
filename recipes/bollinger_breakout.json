@@ -8,13 +8,13 @@
   },
   "capital": {
     "initial": 10000,
-    "position_size_percent": 20
+    "positionSizePercent": 20
   },
-  "risk_management": {
-    "stop_loss_percent": 2.5,
-    "take_profit_percent": 6.0,
-    "max_daily_loss_percent": 8.0,
-    "max_open_positions": 1
+  "risk": {
+    "stopLossPercent": 2.5,
+    "takeProfitPercent": 6.0,
+    "maxDailyLossPercent": 8.0,
+    "maxOpenPositions": 1
   },
   "indicators": [
     {
@@ -23,25 +23,25 @@
       "multiplier": 2.0
     }
   ],
-  "entry_conditions": {
+  "entryConditions": {
     "logic": "AND",
     "rules": [
       {
         "indicator": "close",
         "operator": ">",
         "value": 0,
-        "compare_with": "bb_upper"
+        "compareWith": "bb_upper"
       }
     ]
   },
-  "exit_conditions": {
+  "exitConditions": {
     "logic": "OR",
     "rules": [
       {
         "indicator": "close",
         "operator": "<",
         "value": 0,
-        "compare_with": "bb_lower"
+        "compareWith": "bb_lower"
       }
     ]
   }

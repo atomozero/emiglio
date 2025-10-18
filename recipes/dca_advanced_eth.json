@@ -1,219 +1,76 @@
 {
   "name": "DCA Advanced ETH/USDT",
-  "version": "1.0",
   "description": "Advanced Dollar Cost Averaging strategy that buys on dips with dynamic position sizing based on market conditions and RSI levels",
-  "author": "Emiglio",
-  "created": "2025-10-16",
-
   "market": {
     "exchange": "binance",
     "symbol": "ETH/USDT",
-    "timeframe": "1h",
-    "comment": "Hourly timeframe for strategic DCA entries"
+    "timeframe": "1h"
   },
-
   "capital": {
     "initial": 10000,
-    "position_size_percent": 2,
-    "max_open_positions": 1,
-    "dynamic_sizing": true,
-    "comment": "Small base position with dynamic increase on deeper dips"
+    "positionSizePercent": 2
   },
-
-  "dca_config": {
-    "base_buy_amount": 200,
-    "max_buy_amount": 1000,
-    "dip_levels": [
-      {"percent_drop": 5, "multiplier": 1.5},
-      {"percent_drop": 10, "multiplier": 2.0},
-      {"percent_drop": 15, "multiplier": 3.0},
-      {"percent_drop": 20, "multiplier": 4.0}
-    ],
-    "min_time_between_buys_hours": 4,
-    "comment": "Buy more aggressively on larger dips"
+  "risk": {
+    "stopLossPercent": 25.0,
+    "takeProfitPercent": 20.0,
+    "maxDailyLossPercent": 5.0,
+    "maxOpenPositions": 1
   },
-
-  "risk_management": {
-    "stop_loss_percent": 25.0,
-    "take_profit_percent": 20.0,
-    "trailing_stop": true,
-    "trailing_stop_percent": 5.0,
-    "max_daily_loss_percent": 5.0,
-    "comment": "Wide stop loss for long-term DCA, trailing stop to lock profits"
-  },
-
   "indicators": [
     {
       "name": "rsi",
       "period": 14,
-      "overbought": 70,
-      "oversold": 30,
-      "comment": "RSI to identify oversold conditions for buying"
+      "params": {
+        "overbought": 70,
+        "oversold": 30
+      }
     },
     {
       "name": "ema",
-      "periods": [50, 200],
-      "comment": "Long-term EMAs to confirm trend direction"
+      "period": 50,
+      "params": {}
+    },
+    {
+      "name": "ema",
+      "period": 200,
+      "params": {}
     },
     {
       "name": "macd",
-      "fast_period": 12,
-      "slow_period": 26,
-      "signal_period": 9,
-      "comment": "MACD for momentum confirmation"
-    },
-    {
-      "name": "volume_sma",
-      "period": 20,
-      "comment": "Volume analysis for entry timing"
+      "period": 26,
+      "params": {
+        "fast_period": 12,
+        "slow_period": 26,
+        "signal_period": 9
+      }
     }
-  },
-
-  "entry_conditions": {
-    "logic": "OR",
-    "comment": "Multiple entry triggers based on dip severity and indicators",
-    "strategies": [
+  ],
+  "entryConditions": {
+    "logic": "AND",
+    "rules": [
       {
-        "name": "minor_dip_oversold",
-        "logic": "AND",
-        "rules": [
-          {
-            "indicator": "price_drop_from_high",
-            "operator": ">=",
-            "value": 5,
-            "description": "Price dropped 5% from recent high"
-          },
-          {
-            "indicator": "rsi",
-            "operator": "<",
-            "value": 40,
-            "description": "RSI showing oversold"
-          },
-          {
-            "indicator": "close",
-            "operator": ">",
-            "reference": "ema_200",
-            "description": "Still in long-term uptrend"
-          }
-        ],
-        "position_size_multiplier": 1.5
+        "indicator": "rsi",
+        "operator": "<",
+        "value": 40,
+        "compareWith": ""
       },
       {
-        "name": "major_dip",
-        "logic": "AND",
-        "rules": [
-          {
-            "indicator": "price_drop_from_high",
-            "operator": ">=",
-            "value": 15,
-            "description": "Significant price drop"
-          },
-          {
-            "indicator": "rsi",
-            "operator": "<",
-            "value": 30,
-            "description": "Deeply oversold"
-          },
-          {
-            "indicator": "macd",
-            "operator": "crosses_above",
-            "reference": "macd_signal",
-            "description": "MACD showing reversal signal"
-          }
-        ],
-        "position_size_multiplier": 3.0
-      },
-      {
-        "name": "extreme_dip",
-        "logic": "AND",
-        "rules": [
-          {
-            "indicator": "price_drop_from_high",
-            "operator": ">=",
-            "value": 20,
-            "description": "Extreme price drop (fire sale)"
-          },
-          {
-            "indicator": "volume",
-            "operator": ">",
-            "reference": "volume_sma",
-            "multiplier": 2.0,
-            "description": "High volume confirms capitulation"
-          }
-        ],
-        "position_size_multiplier": 4.0
+        "indicator": "close",
+        "operator": ">",
+        "value": 0,
+        "compareWith": "ema_200"
       }
     ]
   },
-
-  "exit_conditions": {
+  "exitConditions": {
     "logic": "OR",
     "rules": [
       {
         "indicator": "rsi",
         "operator": ">",
         "value": 75,
-        "description": "Overbought - take profits"
-      },
-      {
-        "type": "take_profit",
-        "description": "Take profit target reached"
-      },
-      {
-        "type": "trailing_stop",
-        "description": "Trailing stop triggered to lock profits"
-      },
-      {
-        "indicator": "close",
-        "operator": "<",
-        "reference": "ema_200",
-        "consecutive_candles": 5,
-        "description": "Lost long-term uptrend support"
-      }
-    ],
-    "comment": "Exit on overbought or when uptrend is clearly broken"
-  },
-
-  "position_management": {
-    "average_down": true,
-    "max_entries_per_position": 10,
-    "exit_strategy": "LIFO",
-    "comment": "Last In First Out - take profits from most recent buys first"
-  },
-
-  "notifications": {
-    "on_entry": true,
-    "on_exit": true,
-    "on_dip_detected": true,
-    "on_error": true,
-    "channels": ["ui", "log"],
-    "custom_alerts": [
-      {
-        "condition": "price_drop > 10%",
-        "message": "Major dip opportunity detected!"
-      },
-      {
-        "condition": "rsi < 25",
-        "message": "Extreme oversold condition - consider buying"
+        "compareWith": ""
       }
     ]
-  },
-
-  "backtest_config": {
-    "start_date": "2024-01-01",
-    "end_date": "2025-10-01",
-    "commission": 0.001,
-    "slippage": 0.0005,
-    "comment": "Test on full year to capture various market cycles"
-  },
-
-  "notes": [
-    "DCA strategy works best in long-term bull markets with periodic corrections",
-    "Patience is key - wait for meaningful dips before adding to position",
-    "Dynamic sizing allows accumulating more during market fear",
-    "Requires sufficient capital reserve for multiple entries",
-    "Best combined with fundamental conviction in the asset",
-    "Consider tax implications of multiple entries/exits",
-    "Monitor overall portfolio allocation - don't over-concentrate"
-  ]
+  }
 }

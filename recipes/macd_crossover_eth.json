@@ -8,13 +8,13 @@
   },
   "capital": {
     "initial": 5000,
-    "position_size_percent": 15
+    "positionSizePercent": 15
   },
-  "risk_management": {
-    "stop_loss_percent": 3.0,
-    "take_profit_percent": 8.0,
-    "max_daily_loss_percent": 10.0,
-    "max_open_positions": 2
+  "risk": {
+    "stopLossPercent": 3.0,
+    "takeProfitPercent": 8.0,
+    "maxDailyLossPercent": 10.0,
+    "maxOpenPositions": 2
   },
   "indicators": [
     {
@@ -25,25 +25,25 @@
       "signal_period": 9
     }
   ],
-  "entry_conditions": {
+  "entryConditions": {
     "logic": "AND",
     "rules": [
       {
         "indicator": "macd",
         "operator": "crosses_above",
         "value": 0,
-        "compare_with": "macd_signal"
+        "compareWith": "macd_signal"
       }
     ]
   },
-  "exit_conditions": {
+  "exitConditions": {
     "logic": "OR",
     "rules": [
       {
         "indicator": "macd",
         "operator": "crosses_below",
         "value": 0,
-        "compare_with": "macd_signal"
+        "compareWith": "macd_signal"
       }
     ]
   }
