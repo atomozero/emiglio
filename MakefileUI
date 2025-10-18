@@ -9,6 +9,7 @@ SRCS = \
 	src/core/Application.cpp \
 	src/ui/MainWindow.cpp \
 	src/ui/BacktestView.cpp \
+	src/ui/EquityChartView.cpp \
 	src/ui/DashboardView.cpp \
 	src/ui/TradesView.cpp \
 	src/ui/ChartsView.cpp \
@@ -26,6 +27,7 @@ SRCS = \
 	src/data/DataStorage.cpp \
 	src/exchange/BinanceAPI.cpp \
 	src/exchange/BinanceWebSocket.cpp \
+	src/exchange/WebSocketClient.cpp \
 	src/paper/PaperPortfolio.cpp
 
 LIBS = \
@@ -34,6 +36,7 @@ LIBS = \
 	sqlite3 \
 	ssl \
 	crypto \
+	network \
 	stdc++
 
 SYSTEM_INCLUDE_PATHS = \

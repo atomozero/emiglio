@@ -19,7 +19,7 @@ namespace Emiglio {
 namespace UI {
 
 MainWindow::MainWindow()
-	: BWindow(BRect(100, 100, 1124, 868), "Emiglio - Trading Bot",
+	: BWindow(BRect(50, 50, 1400, 900), "Emiglio - Trading Bot",
 	          B_TITLED_WINDOW,
 	          B_ASYNCHRONOUS_CONTROLS | B_AUTO_UPDATE_SIZE_LIMITS)
 	, menuBar(nullptr)
@@ -33,6 +33,9 @@ MainWindow::MainWindow()
 	, currentTab(0)
 {
 	LOG_INFO("Initializing MainWindow");
+
+	// Set size limits - allow resizing
+	SetSizeLimits(1000, 3000, 700, 2000);
 
 	// Center window on screen
 	BScreen screen;

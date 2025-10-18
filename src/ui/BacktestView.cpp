@@ -9,12 +9,33 @@
 #include <Path.h>
 #include <Directory.h>
 #include <Entry.h>
+#include <Messenger.h>
 
 #include <sstream>
 #include <iomanip>
 
 namespace Emiglio {
 namespace UI {
+
+// TradesColumnListView implementation
+TradesColumnListView::TradesColumnListView(const char* name, uint32 flags,
+                                           border_style border,
+                                           bool showHorizontalScrollbar)
+	: BColumnListView(name, flags, border, showHorizontalScrollbar)
+{
+}
+
+TradesColumnListView::~TradesColumnListView() {
+}
+
+void TradesColumnListView::SelectionChanged() {
+	BColumnListView::SelectionChanged();
+
+	// Send selection message whenever selection changes
+	BMessage msg(MSG_TRADE_SELECTED);
+	BMessenger messenger(Target());
+	messenger.SendMessage(&msg);
+}
 
 BacktestView::BacktestView()
 	: BView("Backtest", B_WILL_DRAW)
@@ -34,10 +55,11 @@ BacktestView::BacktestView()
 	, sharpeLabel(nullptr)
 	, drawdownLabel(nullptr)
 	, tradesList(nullptr)
-	, tradesScrollView(nullptr)
 	, progressBar(nullptr)
+	, equityChartView(nullptr)
 	, selectedRecipePath("")
 	, backtestRunning(false)
+	, selectedTradeIndex(-1)
 {
 	SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
 	SetupUI();
@@ -53,40 +75,60 @@ void BacktestView::AttachedToWindow() {
 	// Set message targets
 	runButton->SetTarget(this);
 	exportButton->SetTarget(this);
+
+	// Debug: verify tradesList target
+	if (tradesList) {
+		tradesList->SetTarget(this);
+		LOG_INFO("TradesList target set to BacktestView");
+	}
 }
 
 void BacktestView::SetupUI() {
-	// Title
-	BStringView* titleView = new BStringView("title", "Backtest Strategy");
-	titleView->SetFont(be_bold_font);
+	// Modern title with better styling
+	BStringView* titleView = new BStringView("title", "Strategy Backtest");
+	BFont titleFont(*be_bold_font);
+	titleFont.SetSize(15.0);
+	titleView->SetFont(&titleFont);
+	titleView->SetHighColor(40, 40, 50);
 
 	// Setup panels
 	SetupConfigPanel();
 	SetupResultsPanel();
 
-	// Layout
-	BLayoutBuilder::Group<>(this, B_VERTICAL, B_USE_DEFAULT_SPACING)
+	// Create equity chart view
+	equityChartView = new EquityChartView();
+	equityChartView->SetExplicitMinSize(BSize(B_SIZE_UNSET, 350));
+
+	// Layout - Redesign with trades in sidebar
+	BLayoutBuilder::Group<>(this, B_VERTICAL, 10)
 		.SetInsets(B_USE_WINDOW_SPACING)
 		.Add(titleView)
-		.AddGroup(B_HORIZONTAL, B_USE_DEFAULT_SPACING)
-			.AddGroup(B_VERTICAL, B_USE_SMALL_SPACING, 0.4f)
-				.Add(new BStringView("configLabel", "Configuration"))
-				.AddGroup(B_VERTICAL)
+		.AddGroup(B_HORIZONTAL, 12)
+			// Left: Configuration panel + Trades list (22%)
+			.AddGroup(B_VERTICAL, 8, 0.22f)
+				// Configuration section
+				.AddGroup(B_VERTICAL, 5)
 					.Add(recipeField)
 					.Add(symbolControl)
 					.Add(initialCapitalControl)
 					.Add(commissionControl)
 					.Add(slippageControl)
 					.End()
-				.AddGroup(B_HORIZONTAL)
-					.Add(runButton)
-					.AddGlue()
-					.End()
+				.AddStrut(10)
+				.Add(runButton)
 				.Add(progressBar)
-				.AddGlue()
+				.AddStrut(15)
+				// Trades list section
+				.Add(new BStringView("tradesTitle", "Recent Trades"))
+				.Add(tradesList, 2.0f)
 				.End()
-			.AddGroup(B_VERTICAL, B_USE_SMALL_SPACING, 0.6f)
-				.Add(new BStringView("resultsLabel", "Results"))
+			// Right: Main content area (78%)
+			.AddGroup(B_VERTICAL, 8, 0.78f)
+				// Equity chart (dominant element)
+				.Add(equityChartView, 5.0f)
+				// Status bar
+				.Add(statusLabel)
+				// Metrics panel (compact, bottom)
 				.Add(resultsPanel)
 				.End()
 			.End()
@@ -125,45 +167,61 @@ void BacktestView::SetupConfigPanel() {
 }
 
 void BacktestView::SetupResultsPanel() {
-	// Results group
-	resultsPanel = new BGroupView(B_VERTICAL, B_USE_SMALL_SPACING);
+	// Results group - just metrics now (trades moved to sidebar)
+	resultsPanel = new BGroupView(B_HORIZONTAL, 12);
+	resultsPanel->SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
 
 	// Status
 	statusLabel = new BStringView("status", "No backtest run yet");
 
-	// Metrics
-	tradesLabel = new BStringView("trades", "Total Trades: -");
+	// Metrics - we'll create these as cards
+	tradesLabel = new BStringView("trades", "Trades: -");
 	winRateLabel = new BStringView("winrate", "Win Rate: -");
-	returnLabel = new BStringView("return", "Total Return: -");
-	sharpeLabel = new BStringView("sharpe", "Sharpe Ratio: -");
-	drawdownLabel = new BStringView("drawdown", "Max Drawdown: -");
+	returnLabel = new BStringView("return", "Return: -");
+	sharpeLabel = new BStringView("sharpe", "Sharpe: -");
+	drawdownLabel = new BStringView("drawdown", "Max DD: -");
 
-	// Trades list
-	tradesList = new BListView("tradeslist");
-	tradesScrollView = new BScrollView("tradesscroll", tradesList,
-	                                    0, false, true,
-	                                    B_FANCY_BORDER);
+	// Trades list - using custom TradesColumnListView for better display
+	tradesList = new TradesColumnListView("tradeslist", 0, B_FANCY_BORDER, true);
+	tradesList->SetSelectionMode(B_SINGLE_SELECTION_LIST);
 
-	// Build results panel
-	BLayoutBuilder::Group<>(resultsPanel, B_VERTICAL, B_USE_SMALL_SPACING)
-		.Add(statusLabel)
-		.AddStrut(B_USE_DEFAULT_SPACING)
-		.Add(tradesLabel)
-		.Add(winRateLabel)
-		.Add(returnLabel)
-		.Add(sharpeLabel)
-		.Add(drawdownLabel)
-		.AddStrut(B_USE_DEFAULT_SPACING)
-		.Add(new BStringView("tradesTitle", "Trades:"))
-		.Add(tradesScrollView, 3.0f)
-		.AddGroup(B_HORIZONTAL)
-			.Add(exportButton)
-			.AddGlue()
+	// Set target for selection messages
+	tradesList->SetTarget(this);
+
+	// Add columns
+	tradesList->AddColumn(new BStringColumn("P&L", 70, 50, 100, 0), 0);
+	tradesList->AddColumn(new BStringColumn("Entry", 80, 50, 120, 0), 1);
+	tradesList->AddColumn(new BStringColumn("Exit", 80, 50, 120, 0), 2);
+	tradesList->AddColumn(new BStringColumn("Reason", 90, 50, 150, 0), 3);
+
+	// Build results panel - horizontal metrics layout
+	BLayoutBuilder::Group<>(resultsPanel, B_HORIZONTAL, 12)
+		.AddGroup(B_VERTICAL, 2)
+			.Add(tradesLabel)
+			.Add(winRateLabel)
 			.End()
+		.AddGroup(B_VERTICAL, 2)
+			.Add(returnLabel)
+			.Add(sharpeLabel)
+			.End()
+		.AddGroup(B_VERTICAL, 2)
+			.Add(drawdownLabel)
+			.End()
+		.AddGlue()
+		.Add(exportButton)
 		.End();
 }
 
 void BacktestView::MessageReceived(BMessage* message) {
+	// Debug: log all messages
+	char msgCode[5];
+	msgCode[0] = (message->what >> 24) & 0xFF;
+	msgCode[1] = (message->what >> 16) & 0xFF;
+	msgCode[2] = (message->what >> 8) & 0xFF;
+	msgCode[3] = message->what & 0xFF;
+	msgCode[4] = '\0';
+	LOG_INFO(std::string("BacktestView received message: ") + msgCode);
+
 	switch (message->what) {
 		case MSG_BACKTEST_RUN:
 			RunBacktest();
@@ -178,6 +236,28 @@ void BacktestView::MessageReceived(BMessage* message) {
 			if (message->FindString("path", &path) == B_OK) {
 				selectedRecipePath = path;
 				LOG_INFO("Recipe selected: " + selectedRecipePath);
+			}
+			break;
+		}
+
+		case MSG_TRADE_SELECTED: {
+			BRow* row = tradesList->CurrentSelection();
+			if (row) {
+				selectedTradeIndex = tradesList->IndexOf(row);
+				LOG_INFO("Trade selected: " + std::to_string(selectedTradeIndex) + " of " + std::to_string(lastResult.trades.size()));
+
+				// Update equity chart to highlight selected trade
+				equityChartView->SetSelectedTradeIndex(selectedTradeIndex);
+
+				// Update status to show which trade is selected
+				if (selectedTradeIndex < (int32)lastResult.trades.size()) {
+					const auto& trade = lastResult.trades[selectedTradeIndex];
+					std::ostringstream status;
+					status << "Selected trade #" << (selectedTradeIndex + 1)
+					       << " - P&L: $" << std::fixed << std::setprecision(2) << trade.pnl
+					       << " (" << trade.exitReason << ")";
+					statusLabel->SetText(status.str().c_str());
+				}
 			}
 			break;
 		}
@@ -382,6 +462,11 @@ void BacktestView::RunBacktest() {
 }
 
 void BacktestView::DisplayResults(const Backtest::BacktestResult& result) {
+	// Update equity chart
+	equityChartView->SetEquityCurve(result.equityCurve);
+	equityChartView->SetTrades(result.trades);
+	equityChartView->SetInitialCapital(result.initialCapital);
+
 	// Status
 	std::ostringstream status;
 	status << "Backtest completed: " << result.recipeName
@@ -389,11 +474,11 @@ void BacktestView::DisplayResults(const Backtest::BacktestResult& result) {
 	       << " (" << result.totalCandles << " candles)";
 	statusLabel->SetText(status.str().c_str());
 
-	// Metrics
+	// Metrics - formatted with better styling
 	std::ostringstream trades;
-	trades << "Total Trades: " << result.totalTrades
-	       << " (" << result.winningTrades << " wins, "
-	       << result.losingTrades << " losses)";
+	trades << "Trades: " << result.totalTrades
+	       << " (" << result.winningTrades << "W / "
+	       << result.losingTrades << "L)";
 	tradesLabel->SetText(trades.str().c_str());
 
 	std::ostringstream winrate;
@@ -403,44 +488,82 @@ void BacktestView::DisplayResults(const Backtest::BacktestResult& result) {
 
 	std::ostringstream ret;
 	ret << std::fixed << std::setprecision(2);
-	ret << "Total Return: $" << (result.finalEquity - result.initialCapital)
-	    << " (" << result.totalReturnPercent << "%)";
+	ret << "Return: " << (result.totalReturnPercent >= 0 ? "+" : "")
+	    << result.totalReturnPercent << "%";
 	returnLabel->SetText(ret.str().c_str());
 
+	// Color code the return
+	if (result.totalReturnPercent >= 0) {
+		returnLabel->SetHighColor(34, 139, 34);  // Green
+	} else {
+		returnLabel->SetHighColor(220, 38, 38);  // Red
+	}
+
 	std::ostringstream sharpe;
-	sharpe << std::fixed << std::setprecision(3);
-	sharpe << "Sharpe Ratio: " << result.sharpeRatio;
+	sharpe << std::fixed << std::setprecision(2);
+	sharpe << "Sharpe: " << result.sharpeRatio;
 	sharpeLabel->SetText(sharpe.str().c_str());
 
 	std::ostringstream dd;
 	dd << std::fixed << std::setprecision(2);
-	dd << "Max Drawdown: " << result.maxDrawdownPercent << "%";
+	dd << "Max DD: -" << result.maxDrawdownPercent << "%";
 	drawdownLabel->SetText(dd.str().c_str());
+	drawdownLabel->SetHighColor(220, 38, 38);  // Red for drawdown
 
-	// Trades list
-	tradesList->MakeEmpty();
+	// Trades list - populate with column data
+	while (tradesList->CountRows() > 0) {
+		BRow* row = tradesList->RowAt(0);
+		tradesList->RemoveRow(row);
+		delete row;
+	}
 
 	for (const auto& trade : result.trades) {
-		std::ostringstream item;
-		item << std::fixed << std::setprecision(2);
-		item << "P&L: $" << trade.pnl
-		     << " | Entry: $" << trade.entryPrice
-		     << " | Exit: $" << trade.exitPrice
-		     << " | " << trade.exitReason;
+		BRow* row = new BRow();
 
-		tradesList->AddItem(new BStringItem(item.str().c_str()));
+		// P&L column (with color)
+		std::ostringstream pnlStr;
+		pnlStr << std::fixed << std::setprecision(2);
+		pnlStr << (trade.pnl >= 0 ? "+" : "") << "$" << trade.pnl;
+		row->SetField(new BStringField(pnlStr.str().c_str()), 0);
+
+		// Entry price
+		std::ostringstream entryStr;
+		entryStr << std::fixed << std::setprecision(2) << "$" << trade.entryPrice;
+		row->SetField(new BStringField(entryStr.str().c_str()), 1);
+
+		// Exit price
+		std::ostringstream exitStr;
+		exitStr << std::fixed << std::setprecision(2) << "$" << trade.exitPrice;
+		row->SetField(new BStringField(exitStr.str().c_str()), 2);
+
+		// Exit reason (truncated if needed)
+		std::string reason = trade.exitReason;
+		if (reason.length() > 15) {
+			reason = reason.substr(0, 12) + "...";
+		}
+		row->SetField(new BStringField(reason.c_str()), 3);
+
+		tradesList->AddRow(row);
 	}
 }
 
 void BacktestView::ClearResults() {
+	equityChartView->Clear();
 	statusLabel->SetText("No backtest run yet");
-	tradesLabel->SetText("Total Trades: -");
+	tradesLabel->SetText("Trades: -");
 	winRateLabel->SetText("Win Rate: -");
-	returnLabel->SetText("Total Return: -");
-	sharpeLabel->SetText("Sharpe Ratio: -");
-	drawdownLabel->SetText("Max Drawdown: -");
-	tradesList->MakeEmpty();
+	returnLabel->SetText("Return: -");
+	sharpeLabel->SetText("Sharpe: -");
+	drawdownLabel->SetText("Max DD: -");
+
+	while (tradesList->CountRows() > 0) {
+		BRow* row = tradesList->RowAt(0);
+		tradesList->RemoveRow(row);
+		delete row;
+	}
+
 	exportButton->SetEnabled(false);
+	selectedTradeIndex = -1;
 }
 
 void BacktestView::ExportResults() {

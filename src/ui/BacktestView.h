@@ -11,11 +11,14 @@
 #include <ScrollView.h>
 #include <StatusBar.h>
 #include <GroupView.h>
+#include <interface/ColumnListView.h>
+#include <interface/ColumnTypes.h>
 
 #include "../backtest/BacktestSimulator.h"
 #include "../backtest/PerformanceAnalyzer.h"
 #include "../strategy/RecipeLoader.h"
 #include "../data/DataStorage.h"
+#include "EquityChartView.h"
 
 #include <string>
 #include <vector>
@@ -28,7 +31,19 @@ enum {
 	MSG_BACKTEST_RUN = 'btru',
 	MSG_BACKTEST_EXPORT = 'btex',
 	MSG_RECIPE_SELECTED = 'rcps',
-	MSG_BACKTEST_COMPLETE = 'btcp'
+	MSG_BACKTEST_COMPLETE = 'btcp',
+	MSG_TRADE_SELECTED = 'trds'
+};
+
+// Custom column list view that sends selection message on single click
+class TradesColumnListView : public BColumnListView {
+public:
+	TradesColumnListView(const char* name, uint32 flags = B_WILL_DRAW,
+	                     border_style border = B_FANCY_BORDER,
+	                     bool showHorizontalScrollbar = true);
+	virtual ~TradesColumnListView();
+
+	virtual void SelectionChanged() override;
 };
 
 // Backtest view - run backtests and view results
@@ -77,14 +92,15 @@ private:
 	BStringView* returnLabel;
 	BStringView* sharpeLabel;
 	BStringView* drawdownLabel;
-	BListView* tradesList;
-	BScrollView* tradesScrollView;
+	TradesColumnListView* tradesList;
 	BStatusBar* progressBar;
+	EquityChartView* equityChartView;
 
 	// State
 	std::string selectedRecipePath;
 	Emiglio::Backtest::BacktestResult lastResult;
 	bool backtestRunning;
+	int32 selectedTradeIndex;
 };
 
 } // namespace UI
