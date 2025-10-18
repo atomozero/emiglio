@@ -8,13 +8,13 @@
 #include <GroupView.h>
 #include <StringView.h>
 #include <Button.h>
-#include <ListView.h>
 #include <ScrollView.h>
-#include <StringItem.h>
 #include <Box.h>
 #include <Directory.h>
 #include <Entry.h>
 #include <Path.h>
+#include <private/interface/ColumnListView.h>
+#include <private/interface/ColumnTypes.h>
 
 #include <sstream>
 #include <iomanip>
@@ -65,40 +65,59 @@ void DashboardView::DetachedFromWindow() {
 
 void DashboardView::BuildLayout() {
 	// Title
-	BStringView* titleView = new BStringView("", "Trading System Dashboard");
+	BStringView* titleView = new BStringView("", "Emiglio Dashboard");
 	BFont titleFont(be_bold_font);
-	titleFont.SetSize(18);
+	titleFont.SetSize(20);
 	titleView->SetFont(&titleFont);
 
-	// Portfolio section
+	// Subtitle
+	BStringView* subtitleView = new BStringView("", "Educational Trading System - Portfolio Overview");
+	BFont subtitleFont(be_plain_font);
+	subtitleFont.SetSize(11);
+	subtitleView->SetFont(&subtitleFont);
+	subtitleView->SetHighColor(100, 100, 100);
+
+	// Portfolio section - make it more prominent
 	totalCapitalLabel = new BStringView("", "Total Capital: $0.00");
 	availableCashLabel = new BStringView("", "Available Cash: $0.00");
 	investedLabel = new BStringView("", "Invested: $0.00");
 	totalPnLLabel = new BStringView("", "Total P&L: $0.00");
 	totalPnLPercentLabel = new BStringView("", "Total P&L %: 0.00%");
 
-	BFont boldFont(be_plain_font);
-	boldFont.SetFace(B_BOLD_FACE);
-	totalPnLLabel->SetFont(&boldFont);
-	totalPnLPercentLabel->SetFont(&boldFont);
+	BFont labelFont(be_plain_font);
+	labelFont.SetSize(13);
+	totalCapitalLabel->SetFont(&labelFont);
+	availableCashLabel->SetFont(&labelFont);
+	investedLabel->SetFont(&labelFont);
+
+	BFont pnlFont(be_bold_font);
+	pnlFont.SetSize(15);
+	totalPnLLabel->SetFont(&pnlFont);
+	totalPnLPercentLabel->SetFont(&pnlFont);
 
 	BBox* portfolioBox = new BBox("portfolio_box");
-	portfolioBox->SetLabel("Portfolio Overview");
+	portfolioBox->SetLabel("Paper Trading Portfolio");
 
 	BLayoutBuilder::Group<>(portfolioBox, B_VERTICAL, B_USE_SMALL_SPACING)
 		.SetInsets(B_USE_DEFAULT_SPACING)
 		.Add(totalCapitalLabel)
 		.Add(availableCashLabel)
 		.Add(investedLabel)
-		.AddStrut(B_USE_SMALL_SPACING)
+		.AddStrut(B_USE_SMALL_SPACING * 2)
 		.Add(totalPnLLabel)
 		.Add(totalPnLPercentLabel)
 		.End();
 
-	// System stats section
+	// System stats section - simpler layout
 	recipesCountLabel = new BStringView("", "Recipes: 0");
 	backtestsCountLabel = new BStringView("", "Backtest Results: 0");
 	candlesCountLabel = new BStringView("", "Candles in Database: 0");
+
+	BFont statsFont(be_plain_font);
+	statsFont.SetSize(13);
+	recipesCountLabel->SetFont(&statsFont);
+	backtestsCountLabel->SetFont(&statsFont);
+	candlesCountLabel->SetFont(&statsFont);
 
 	BBox* statsBox = new BBox("stats_box");
 	statsBox->SetLabel("System Statistics");
@@ -110,19 +129,41 @@ void DashboardView::BuildLayout() {
 		.Add(candlesCountLabel)
 		.End();
 
-	// Binance Portfolio section
-	binanceStatusLabel = new BStringView("", "Not connected");
-	binanceBalancesView = new BListView("binance_balances");
+	// Binance Portfolio section - with column list view
+	binanceStatusLabel = new BStringView("", "Status: Not connected");
+	BFont statusFont(be_bold_font);
+	statusFont.SetSize(13);
+	binanceStatusLabel->SetFont(&statusFont);
+
+	binanceTotalValueLabel = new BStringView("", "");
+	BFont valueFont(be_plain_font);
+	valueFont.SetSize(12);
+	binanceTotalValueLabel->SetFont(&valueFont);
+
+	// Create column list view for balances
+	binanceBalancesView = new BColumnListView("binance_balances", B_WILL_DRAW, B_FANCY_BORDER, true);
+
+	// Add columns
+	binanceBalancesView->AddColumn(new BStringColumn("Asset", 80, 50, 150, B_TRUNCATE_END), 0);
+	binanceBalancesView->AddColumn(new BStringColumn("Total", 140, 100, 200, B_TRUNCATE_END), 1);
+	binanceBalancesView->AddColumn(new BStringColumn("Free", 140, 100, 200, B_TRUNCATE_END), 2);
+	binanceBalancesView->AddColumn(new BStringColumn("Locked", 140, 100, 200, B_TRUNCATE_END), 3);
+
 	binanceBalancesScroll = new BScrollView("binance_scroll", binanceBalancesView,
 	                                        0, false, true);
-	refreshBinanceButton = new BButton("Refresh", new BMessage(MSG_REFRESH_BINANCE));
+
+	refreshBinanceButton = new BButton("Refresh Binance Portfolio", new BMessage(MSG_REFRESH_BINANCE));
 
 	BBox* binanceBox = new BBox("binance_box");
-	binanceBox->SetLabel("Binance Portfolio");
+	binanceBox->SetLabel("Binance Live Portfolio");
 
 	BLayoutBuilder::Group<>(binanceBox, B_VERTICAL, B_USE_SMALL_SPACING)
 		.SetInsets(B_USE_DEFAULT_SPACING)
-		.Add(binanceStatusLabel)
+		.AddGroup(B_HORIZONTAL)
+			.Add(binanceStatusLabel)
+			.AddGlue()
+			.Add(binanceTotalValueLabel)
+		.End()
 		.Add(binanceBalancesScroll)
 		.Add(refreshBinanceButton)
 		.End();
@@ -133,7 +174,7 @@ void DashboardView::BuildLayout() {
 	                                        0, false, true);
 
 	BBox* recentBox = new BBox("recent_box");
-	recentBox->SetLabel("Recent Activity");
+	recentBox->SetLabel("Recent Backtest Results");
 
 	BLayoutBuilder::Group<>(recentBox, B_VERTICAL, B_USE_SMALL_SPACING)
 		.SetInsets(B_USE_DEFAULT_SPACING)
@@ -141,21 +182,24 @@ void DashboardView::BuildLayout() {
 		.End();
 
 	// Action buttons
-	runBacktestButton = new BButton("Run Backtest", new BMessage(MSG_RUN_BACKTEST));
+	runBacktestButton = new BButton("Run New Backtest", new BMessage(MSG_RUN_BACKTEST));
 
-	// Main layout
+	// Main layout - vertical stacking for clarity
 	BLayoutBuilder::Group<>(this, B_VERTICAL, B_USE_DEFAULT_SPACING)
 		.SetInsets(B_USE_WINDOW_SPACING)
 		.Add(titleView)
+		.Add(subtitleView)
 		.AddStrut(B_USE_DEFAULT_SPACING)
+		// Top row: Portfolio and Stats side by side
 		.AddGroup(B_HORIZONTAL, B_USE_DEFAULT_SPACING)
-			.Add(portfolioBox, 1)
+			.Add(portfolioBox, 1.5)
 			.Add(statsBox, 1)
 		.End()
-		.AddGroup(B_HORIZONTAL, B_USE_DEFAULT_SPACING)
-			.Add(binanceBox, 1)
-			.Add(recentBox, 1)
-		.End()
+		// Middle: Binance Portfolio (full width)
+		.Add(binanceBox, 2)
+		// Bottom: Recent backtests
+		.Add(recentBox, 1.5)
+		// Action buttons
 		.AddGroup(B_HORIZONTAL)
 			.Add(runBacktestButton)
 			.AddGlue()
@@ -251,7 +295,7 @@ void DashboardView::LoadPortfolioStats() {
 	}
 
 	oss.str("");
-	oss << "Recipes: " << recipeCount;
+	oss << "Recipes: " << recipeCount << " strategies";
 	recipesCountLabel->SetText(oss.str().c_str());
 
 	// Count candles in database
@@ -262,11 +306,11 @@ void DashboardView::LoadPortfolioStats() {
 	}
 
 	oss.str("");
-	oss << "Candles in Database: " << candleCount;
+	oss << "Candles: " << candleCount << " data points";
 	candlesCountLabel->SetText(oss.str().c_str());
 
 	oss.str("");
-	oss << "Backtest Results: N/A (not stored yet)";
+	oss << "Backtests: N/A";
 	backtestsCountLabel->SetText(oss.str().c_str());
 
 	LOG_INFO("Dashboard stats refreshed");
@@ -365,50 +409,79 @@ void DashboardView::LoadRecentBacktests() {
 }
 
 void DashboardView::LoadBinancePortfolio() {
-	binanceBalancesView->MakeEmpty();
+	// Clear existing rows
+	binanceBalancesView->Clear();
 
 	// Check if credentials exist
 	if (!credentialManager->hasCredentials("binance")) {
-		binanceStatusLabel->SetText("⚠️ Not configured");
+		binanceStatusLabel->SetText("Status: Not configured");
 		binanceStatusLabel->SetHighColor(200, 100, 0); // Orange
-		binanceBalancesView->AddItem(new BStringItem("No Binance API credentials configured."));
-		binanceBalancesView->AddItem(new BStringItem(""));
-		binanceBalancesView->AddItem(new BStringItem("Go to Settings tab to configure your API keys."));
+		binanceTotalValueLabel->SetText("");
+
+		BRow* row = new BRow();
+		row->SetField(new BStringField("N/A"), 0);
+		row->SetField(new BStringField("No API credentials configured"), 1);
+		row->SetField(new BStringField("Go to Settings tab"), 2);
+		row->SetField(new BStringField(""), 3);
+		binanceBalancesView->AddRow(row);
 		return;
 	}
 
 	// Load credentials
 	std::string apiKey, apiSecret;
 	if (!credentialManager->loadCredentials("binance", apiKey, apiSecret)) {
-		binanceStatusLabel->SetText("⚠️ Failed to load credentials");
+		binanceStatusLabel->SetText("Status: Failed to load credentials");
 		binanceStatusLabel->SetHighColor(200, 0, 0); // Red
-		binanceBalancesView->AddItem(new BStringItem("Failed to decrypt credentials."));
+		binanceTotalValueLabel->SetText("");
+
+		BRow* row = new BRow();
+		row->SetField(new BStringField("Error"), 0);
+		row->SetField(new BStringField("Failed to decrypt credentials"), 1);
+		row->SetField(new BStringField("Check configuration"), 2);
+		row->SetField(new BStringField(""), 3);
+		binanceBalancesView->AddRow(row);
+
 		LOG_ERROR("Failed to load Binance credentials: " + credentialManager->getLastError());
 		return;
 	}
 
 	// Initialize Binance API
 	if (!binanceAPI->init(apiKey, apiSecret)) {
-		binanceStatusLabel->SetText("⚠️ API initialization failed");
+		binanceStatusLabel->SetText("Status: API initialization failed");
 		binanceStatusLabel->SetHighColor(200, 0, 0); // Red
-		binanceBalancesView->AddItem(new BStringItem("Failed to initialize Binance API."));
+		binanceTotalValueLabel->SetText("");
+
+		BRow* row = new BRow();
+		row->SetField(new BStringField("Error"), 0);
+		row->SetField(new BStringField("Failed to initialize Binance API"), 1);
+		row->SetField(new BStringField("Check API keys"), 2);
+		row->SetField(new BStringField(""), 3);
+		binanceBalancesView->AddRow(row);
+
 		LOG_ERROR("Failed to initialize BinanceAPI");
 		return;
 	}
 
-	binanceStatusLabel->SetText("🔄 Loading...");
+	binanceStatusLabel->SetText("Status: Loading...");
 	binanceStatusLabel->SetHighColor(0, 0, 0); // Black
+	binanceTotalValueLabel->SetText("");
 	binanceStatusLabel->Invalidate();
 
 	// Fetch balances
 	std::vector<Balance> balances = binanceAPI->getBalances();
 
 	if (balances.empty()) {
-		binanceStatusLabel->SetText("ℹ️ No balances");
-		binanceStatusLabel->SetHighColor(0, 100, 200); // Blue
-		binanceBalancesView->AddItem(new BStringItem("No cryptocurrency holdings found."));
-		binanceBalancesView->AddItem(new BStringItem(""));
-		binanceBalancesView->AddItem(new BStringItem("Your Binance account appears to be empty."));
+		binanceStatusLabel->SetText("Status: Connected");
+		binanceStatusLabel->SetHighColor(0, 150, 0); // Green
+		binanceTotalValueLabel->SetText("Total Assets: 0");
+
+		BRow* row = new BRow();
+		row->SetField(new BStringField("N/A"), 0);
+		row->SetField(new BStringField("No holdings found"), 1);
+		row->SetField(new BStringField("Account is empty"), 2);
+		row->SetField(new BStringField(""), 3);
+		binanceBalancesView->AddRow(row);
+
 		LOG_INFO("No balances found in Binance account");
 		return;
 	}
@@ -420,34 +493,42 @@ void DashboardView::LoadBinancePortfolio() {
 	          });
 
 	// Display balances
-	binanceStatusLabel->SetText("✓ Connected");
+	binanceStatusLabel->SetText("Status: Connected & Loaded");
 	binanceStatusLabel->SetHighColor(0, 150, 0); // Green
 
-	// Add header
-	binanceBalancesView->AddItem(new BStringItem("Asset Holdings:"));
-	binanceBalancesView->AddItem(new BStringItem(""));
+	// Calculate total count
+	std::ostringstream totalText;
+	totalText << "Total Assets: " << balances.size() << " different cryptocurrencies";
+	binanceTotalValueLabel->SetText(totalText.str().c_str());
 
-	// Display each balance
+	// Display each balance in column list
 	for (const auto& balance : balances) {
-		std::ostringstream item;
-		item << std::fixed << std::setprecision(8);
+		BRow* row = new BRow();
 
-		// Format: ASSET: 123.45678900 (Free: 100.00, Locked: 23.45678900)
-		item << balance.asset << ": " << balance.total;
+		// Asset name
+		row->SetField(new BStringField(balance.asset.c_str()), 0);
 
-		if (balance.locked > 0) {
-			item << std::setprecision(8);
-			item << " (Free: " << balance.free << ", Locked: " << balance.locked << ")";
+		// Total balance
+		std::ostringstream totalStr;
+		totalStr << std::fixed << std::setprecision(8) << balance.total;
+		row->SetField(new BStringField(totalStr.str().c_str()), 1);
+
+		// Free balance
+		std::ostringstream freeStr;
+		freeStr << std::fixed << std::setprecision(8) << balance.free;
+		row->SetField(new BStringField(freeStr.str().c_str()), 2);
+
+		// Locked balance
+		std::ostringstream lockedStr;
+		if (balance.locked > 0.00000001) {  // Only show if significant
+			lockedStr << std::fixed << std::setprecision(8) << balance.locked;
+		} else {
+			lockedStr << "—";
 		}
+		row->SetField(new BStringField(lockedStr.str().c_str()), 3);
 
-		binanceBalancesView->AddItem(new BStringItem(item.str().c_str()));
+		binanceBalancesView->AddRow(row);
 	}
-
-	// Add summary
-	binanceBalancesView->AddItem(new BStringItem(""));
-	std::ostringstream summary;
-	summary << "Total: " << balances.size() << " different assets";
-	binanceBalancesView->AddItem(new BStringItem(summary.str().c_str()));
 
 	LOG_INFO("Loaded " + std::to_string(balances.size()) + " Binance balances");
 }

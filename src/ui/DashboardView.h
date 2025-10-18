@@ -4,12 +4,13 @@
 #include <View.h>
 #include <StringView.h>
 #include <MessageRunner.h>
+#include <ListView.h>
 #include <string>
 #include <memory>
 
-class BListView;
 class BScrollView;
 class BButton;
+class BColumnListView;
 
 namespace Emiglio {
 
@@ -47,7 +48,8 @@ private:
 
 	// Binance portfolio
 	BStringView* binanceStatusLabel;
-	BListView* binanceBalancesView;
+	BStringView* binanceTotalValueLabel;
+	BColumnListView* binanceBalancesView;
 	BScrollView* binanceBalancesScroll;
 	BButton* refreshBinanceButton;
 
