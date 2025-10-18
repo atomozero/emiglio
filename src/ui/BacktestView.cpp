@@ -188,11 +188,9 @@ void BacktestView::SetupResultsPanel() {
 	// Set target for selection messages
 	tradesList->SetTarget(this);
 
-	// Add columns
-	tradesList->AddColumn(new BStringColumn("P&L", 70, 50, 100, 0), 0);
-	tradesList->AddColumn(new BStringColumn("Entry", 80, 50, 120, 0), 1);
-	tradesList->AddColumn(new BStringColumn("Exit", 80, 50, 120, 0), 2);
-	tradesList->AddColumn(new BStringColumn("Reason", 90, 50, 150, 0), 3);
+	// Add columns (only P&L and Reason - details in tooltip)
+	tradesList->AddColumn(new BStringColumn("P&L", 90, 70, 120, 0), 0);
+	tradesList->AddColumn(new BStringColumn("Reason", 150, 100, 250, 0), 1);
 
 	// Build results panel - horizontal metrics layout
 	BLayoutBuilder::Group<>(resultsPanel, B_HORIZONTAL, 12)
@@ -526,22 +524,8 @@ void BacktestView::DisplayResults(const Backtest::BacktestResult& result) {
 		pnlStr << (trade.pnl >= 0 ? "+" : "") << "$" << trade.pnl;
 		row->SetField(new BStringField(pnlStr.str().c_str()), 0);
 
-		// Entry price
-		std::ostringstream entryStr;
-		entryStr << std::fixed << std::setprecision(2) << "$" << trade.entryPrice;
-		row->SetField(new BStringField(entryStr.str().c_str()), 1);
-
-		// Exit price
-		std::ostringstream exitStr;
-		exitStr << std::fixed << std::setprecision(2) << "$" << trade.exitPrice;
-		row->SetField(new BStringField(exitStr.str().c_str()), 2);
-
-		// Exit reason (truncated if needed)
-		std::string reason = trade.exitReason;
-		if (reason.length() > 15) {
-			reason = reason.substr(0, 12) + "...";
-		}
-		row->SetField(new BStringField(reason.c_str()), 3);
+		// Exit reason (no truncation needed with more space)
+		row->SetField(new BStringField(trade.exitReason.c_str()), 1);
 
 		tradesList->AddRow(row);
 	}
