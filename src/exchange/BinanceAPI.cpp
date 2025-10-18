@@ -498,8 +498,34 @@ std::vector<Balance> BinanceAPI::getBalances() {
 	// Parse JSON response
 	JsonParser parser;
 	if (parser.parse(response)) {
-		// TODO: Parse balances array
-		LOG_WARNING("Balances parsing not yet implemented (requires array support)");
+		// Binance returns: {"balances": [{"asset": "BTC", "free": "0.00000000", "locked": "0.00000000"}, ...]}
+		if (parser.has("balances") && parser.isArray("balances")) {
+			size_t count = parser.getArraySize("balances");
+			LOG_INFO("Parsing " + std::to_string(count) + " balances from account");
+
+			for (size_t i = 0; i < count; i++) {
+				Balance balance;
+				balance.asset = parser.getArrayObjectString("balances", i, "asset", "");
+				balance.free = parser.getArrayObjectDouble("balances", i, "free", 0.0);
+				balance.locked = parser.getArrayObjectDouble("balances", i, "locked", 0.0);
+				balance.total = balance.free + balance.locked;
+
+				// Only add balances with non-zero amounts to reduce clutter
+				if (balance.total > 0.0) {
+					balances.push_back(balance);
+					LOG_DEBUG("Balance: " + balance.asset + " = " +
+					         std::to_string(balance.total) + " (free: " +
+					         std::to_string(balance.free) + ", locked: " +
+					         std::to_string(balance.locked) + ")");
+				}
+			}
+
+			LOG_INFO("Loaded " + std::to_string(balances.size()) + " non-zero balances");
+		} else {
+			LOG_ERROR("Failed to find 'balances' array in response");
+		}
+	} else {
+		LOG_ERROR("Failed to parse account response: " + parser.getError());
 	}
 
 	return balances;
