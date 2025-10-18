@@ -207,12 +207,12 @@ These recipes have been professionally optimized based on comprehensive annual m
 - **Advanced**: dca_advanced_v2, grid_trading_btc
 - **Expert**: swing_trading_elite (⭐ top performer)
 
-### By Capital Size
+### By Experience Level and Risk Profile
 
-- **€100-€300**: simple_rsi_safe, rsi_scalping_enhanced
-- **€300-€800**: macd_crossover_enhanced, bollinger_mean_reversion
-- **€500-€1500**: dca_advanced_v2, swing_trading_elite
-- **€1000+**: swing_trading_elite (optimal), multiple strategies for diversification
+- **Beginners (Conservative)**: simple_rsi_safe, rsi_scalping_enhanced
+- **Intermediate (Moderate)**: macd_crossover_enhanced, bollinger_mean_reversion
+- **Advanced (Moderate-High)**: dca_advanced_v2, swing_trading_elite
+- **Expert (Diversified)**: swing_trading_elite, multiple strategies for portfolio diversification
 
 ## 📝 Recipe Format
 

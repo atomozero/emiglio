@@ -1,10 +1,12 @@
-# Emiglio - Cryptocurrency Trading Bot
+# Emiglio - Educational Trading System
 
-🤖 Native Haiku OS trading bot with advanced backtesting, real-time charting, and AI-powered analysis.
+🎓 **EDUCATIONAL PROJECT** - Native Haiku OS trading system for learning backtesting, strategy development, and financial software architecture.
 
-![Status](https://img.shields.io/badge/status-production--ready-green)
+![Status](https://img.shields.io/badge/purpose-educational-orange)
 ![Platform](https://img.shields.io/badge/platform-Haiku%20OS-blue)
 ![Language](https://img.shields.io/badge/language-C%2B%2B17-orange)
+
+⚠️ **NOT FOR REAL TRADING** - This is a learning tool. Trading requires proper education, training, and professional guidance.
 
 ## ✨ Features
 
@@ -204,14 +206,16 @@ Emiglio includes **13 pre-built trading strategies** (7 original + 6 optimized) 
 
 Based on comprehensive annual market analysis (Oct 2024 - Oct 2025) with full year of ETHUSDT and EURUSDT data:
 
-| Strategy | Type | Annual Return | Sharpe Ratio | Best For | Capital |
-|----------|------|---------------|--------------|----------|---------|
-| **swing_trading_elite.json** | Swing Trading | **+47%** | 2.0-2.5 | Experienced traders, trending markets | €500-€1000+ |
-| **macd_crossover_enhanced.json** | Trend Following | **+32%** | 1.8-2.2 | Intermediate traders, medium-term | €300-€1000 |
-| **dca_advanced_v2.json** | DCA/Accumulation | **+26%** | 1.5-1.8 | Conservative investors, long-term | €500-€1500+ |
-| **simple_rsi_safe.json** | Mean Reversion | Est. +20-25% | 1.3-1.6 | Beginners, learning risk management | €100-€500 |
-| **rsi_scalping_enhanced.json** | Scalping | Est. +18-22% | 1.2-1.5 | Active traders, 1h timeframe | €300-€800 |
-| **bollinger_mean_reversion.json** | Mean Reversion | Est. +15-20% | 1.1-1.4 | Ranging markets | €300-€800 |
+| Strategy | Type | Backtest Return* | Sharpe Ratio | Best For | Risk Level |
+|----------|------|------------------|--------------|----------|------------|
+| **swing_trading_elite.json** | Swing Trading | **+47%** | 2.0-2.5 | Experienced traders, trending markets | Moderate-High |
+| **macd_crossover_enhanced.json** | Trend Following | **+32%** | 1.8-2.2 | Intermediate traders, medium-term | Moderate |
+| **dca_advanced_v2.json** | DCA/Accumulation | **+26%** | 1.5-1.8 | Conservative approach, long-term | Low-Moderate |
+| **simple_rsi_safe.json** | Mean Reversion | Est. +20-25% | 1.3-1.6 | Beginners, learning risk management | Low |
+| **rsi_scalping_enhanced.json** | Scalping | Est. +18-22% | 1.2-1.5 | Active monitoring, 1h timeframe | Moderate |
+| **bollinger_mean_reversion.json** | Mean Reversion | Est. +15-20% | 1.1-1.4 | Ranging markets | Moderate |
+
+\* **Historical backtest results do NOT guarantee future performance. For educational purposes only.**
 
 ### Key Improvements in Optimized Recipes
 
@@ -265,9 +269,50 @@ See [`recipes/`](recipes/) folder for all 13 strategies and comprehensive docume
 
 This is a personal/educational project. Feel free to use it as inspiration for your own trading bots!
 
-## ⚠️ Disclaimer
+## ⚠️ IMPORTANT DISCLAIMER - READ CAREFULLY
 
-This software is for educational and backtesting purposes only. Cryptocurrency trading involves substantial risk. Never trade with money you cannot afford to lose. The authors are not responsible for any financial losses.
+**EDUCATIONAL PURPOSE ONLY**
+
+This software is developed **exclusively for educational and learning purposes**. It is designed to help students and developers understand:
+- Trading system architecture
+- Backtesting methodologies
+- Technical indicator implementation
+- Risk management concepts
+- API integration patterns
+
+**NOT FOR REAL TRADING**
+
+❌ This software is **NOT** intended for live trading with real money
+❌ This software is **NOT** a financial advisory tool
+❌ This software does **NOT** provide investment recommendations
+
+**TRADING REQUIRES PROPER EDUCATION**
+
+Before engaging in any form of trading (simulated or real), you must:
+- ✅ Complete proper financial education and training
+- ✅ Fully understand the risks involved in trading
+- ✅ Be aware that trading can result in total loss of capital
+- ✅ Consult with qualified financial advisors
+- ✅ Only use funds you can afford to lose completely
+
+**LEGAL DISCLAIMER**
+
+Cryptocurrency and financial trading involves **substantial risk of loss** and is not suitable for everyone. Past performance (including backtested results) does **NOT** guarantee future results. The developers and contributors of this software:
+
+- Make **NO** claims about profitability
+- Provide **NO** financial advice
+- Accept **NO** responsibility for any financial losses
+- Assume **NO** liability for trading decisions made using this software
+
+**USE AT YOUR OWN RISK**
+
+By using this software, you acknowledge that:
+- You use it solely for educational purposes
+- You understand the risks of trading
+- You take full responsibility for your actions
+- You will not hold the developers liable for any losses
+
+**If you plan to trade, seek professional education and guidance first.**
 
 ## 📄 License
 

@@ -1,6 +1,8 @@
 # Test Binance Login - Script di Test
 
-Script a riga di comando per testare le credenziali API di Binance prima di usarle in Emiglio.
+⚠️ **EDUCATIONAL TOOL ONLY** - This is a learning tool for understanding API authentication. Not for real trading.
+
+Script a riga di comando per testare le credenziali API di Binance prima di usarle in Emiglio (solo a scopo didattico).
 
 ## Compilazione
 
@@ -127,6 +129,22 @@ Per Emiglio bastano i permessi di **lettura (Read)**:
 - Usa permessi di sola lettura per sicurezza
 - Considera l'uso di restrizioni IP
 - Se pensi che le tue keys siano compromesse, revocale immediatamente da Binance
+
+## ⚠️ EDUCATIONAL DISCLAIMER
+
+Questo tool è sviluppato **esclusivamente a scopo educativo** per:
+- Apprendere come funziona l'autenticazione API
+- Comprendere il funzionamento delle richieste HTTPS autenticate
+- Studiare la gestione sicura delle credenziali
+- Esplorare l'integrazione con exchange di criptovalute
+
+**NON è destinato al trading reale**. Il trading comporta rischi sostanziali e richiede:
+- Formazione finanziaria adeguata
+- Piena comprensione dei rischi
+- Consulenza professionale
+- Preparazione psicologica e disciplina
+
+Usalo solo per imparare, non per fare trading senza la dovuta preparazione.
 
 ## Prossimi Passi
 
