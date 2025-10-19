@@ -164,16 +164,19 @@ void DashboardView::BuildLayout() {
 	recipesCountLabel = new BStringView("", "Strategies: Loading...");
 	candlesCountLabel = new BStringView("", "Data Points: Loading...");
 	backtestsCountLabel = new BStringView("", "Backtest Results: Loading...");
+	appVersionLabel = new BStringView("", "Version: Loading...");
 
 	recipesCountLabel->SetFont(&valueFont);
 	candlesCountLabel->SetFont(&valueFont);
 	backtestsCountLabel->SetFont(&valueFont);
+	appVersionLabel->SetFont(&valueFont);
 
 	BLayoutBuilder::Group<>(systemBox, B_VERTICAL, 4)
 		.SetInsets(B_USE_DEFAULT_SPACING)
 		.Add(recipesCountLabel)
 		.Add(candlesCountLabel)
 		.Add(backtestsCountLabel)
+		.Add(appVersionLabel)
 		.AddGlue()
 		.End();
 
@@ -233,11 +236,12 @@ void DashboardView::BuildLayout() {
 	simulatedBacktestsBox->SetLabel("Recent Backtests - Simulated");
 
 	simulatedBacktestsView = new BColumnListView("simulated_backtests", B_WILL_DRAW, B_FANCY_BORDER);
-	simulatedBacktestsView->AddColumn(new BStringColumn("Strategy", 120, 80, 180, B_TRUNCATE_END), 0);
-	simulatedBacktestsView->AddColumn(new BStringColumn("Symbol", 80, 60, 120, B_TRUNCATE_END), 1);
-	simulatedBacktestsView->AddColumn(new BStringColumn("Return %", 80, 60, 100, B_TRUNCATE_END), 2);
-	simulatedBacktestsView->AddColumn(new BStringColumn("Sharpe", 70, 50, 90, B_TRUNCATE_END), 3);
-	simulatedBacktestsView->AddColumn(new BStringColumn("Trades", 70, 50, 90, B_TRUNCATE_END), 4);
+	simulatedBacktestsView->AddColumn(new BStringColumn("Strategy", 110, 80, 160, B_TRUNCATE_END), 0);
+	simulatedBacktestsView->AddColumn(new BStringColumn("Symbol", 70, 50, 100, B_TRUNCATE_END), 1);
+	simulatedBacktestsView->AddColumn(new BStringColumn("Return %", 70, 60, 90, B_TRUNCATE_END), 2);
+	simulatedBacktestsView->AddColumn(new BStringColumn("Sharpe", 60, 50, 80, B_TRUNCATE_END), 3);
+	simulatedBacktestsView->AddColumn(new BStringColumn("Trades", 60, 50, 80, B_TRUNCATE_END), 4);
+	simulatedBacktestsView->AddColumn(new BStringColumn("Date", 85, 70, 100, B_TRUNCATE_END), 5);
 	simulatedBacktestsView->SetExplicitMinSize(BSize(B_SIZE_UNSET, 100));
 	simulatedBacktestsView->SetExplicitMaxSize(BSize(B_SIZE_UNSET, 140));
 	simulatedBacktestsView->SetExplicitPreferredSize(BSize(B_SIZE_UNSET, 120));
@@ -262,11 +266,12 @@ void DashboardView::BuildLayout() {
 	realBacktestsBox->SetLabel("Recent Backtests - Real Trading");
 
 	realBacktestsView = new BColumnListView("real_backtests", B_WILL_DRAW, B_FANCY_BORDER);
-	realBacktestsView->AddColumn(new BStringColumn("Strategy", 120, 80, 180, B_TRUNCATE_END), 0);
-	realBacktestsView->AddColumn(new BStringColumn("Symbol", 80, 60, 120, B_TRUNCATE_END), 1);
-	realBacktestsView->AddColumn(new BStringColumn("Return %", 80, 60, 100, B_TRUNCATE_END), 2);
-	realBacktestsView->AddColumn(new BStringColumn("Sharpe", 70, 50, 90, B_TRUNCATE_END), 3);
-	realBacktestsView->AddColumn(new BStringColumn("Trades", 70, 50, 90, B_TRUNCATE_END), 4);
+	realBacktestsView->AddColumn(new BStringColumn("Strategy", 110, 80, 160, B_TRUNCATE_END), 0);
+	realBacktestsView->AddColumn(new BStringColumn("Symbol", 70, 50, 100, B_TRUNCATE_END), 1);
+	realBacktestsView->AddColumn(new BStringColumn("Return %", 70, 60, 90, B_TRUNCATE_END), 2);
+	realBacktestsView->AddColumn(new BStringColumn("Sharpe", 60, 50, 80, B_TRUNCATE_END), 3);
+	realBacktestsView->AddColumn(new BStringColumn("Trades", 60, 50, 80, B_TRUNCATE_END), 4);
+	realBacktestsView->AddColumn(new BStringColumn("Date", 85, 70, 100, B_TRUNCATE_END), 5);
 	realBacktestsView->SetExplicitMinSize(BSize(B_SIZE_UNSET, 100));
 	realBacktestsView->SetExplicitMaxSize(BSize(B_SIZE_UNSET, 140));
 	realBacktestsView->SetExplicitPreferredSize(BSize(B_SIZE_UNSET, 120));
@@ -478,6 +483,12 @@ void DashboardView::LoadPortfolioStats() {
 	oss << "Backtest Results: " << backtestCount;
 	backtestsCountLabel->SetText(oss.str().c_str());
 
+	// App version from Config (reuse config from above)
+	std::string appVersion = config.getString("app.version", "1.0.0");
+	oss.str("");
+	oss << "Version: " << appVersion;
+	appVersionLabel->SetText(oss.str().c_str());
+
 	LOG_INFO("Dashboard stats refreshed");
 }
 
@@ -493,6 +504,7 @@ void DashboardView::LoadRecentBacktests() {
 		simRow->SetField(new BStringField(""), 2);
 		simRow->SetField(new BStringField(""), 3);
 		simRow->SetField(new BStringField(""), 4);
+		simRow->SetField(new BStringField(""), 5);
 		simulatedBacktestsView->AddRow(simRow);
 
 		BRow* realRow = new BRow();
@@ -501,6 +513,7 @@ void DashboardView::LoadRecentBacktests() {
 		realRow->SetField(new BStringField(""), 2);
 		realRow->SetField(new BStringField(""), 3);
 		realRow->SetField(new BStringField(""), 4);
+		realRow->SetField(new BStringField(""), 5);
 		realBacktestsView->AddRow(realRow);
 
 		LOG_WARNING("DataStorage not initialized");
@@ -517,15 +530,17 @@ void DashboardView::LoadRecentBacktests() {
 		simRow->SetField(new BStringField(""), 2);
 		simRow->SetField(new BStringField(""), 3);
 		simRow->SetField(new BStringField(""), 4);
+		simRow->SetField(new BStringField(""), 5);
 		simulatedBacktestsView->AddRow(simRow);
 
 		// Add placeholder row for real trading
 		BRow* realRow = new BRow();
-		realRow->SetField(new BStringField("No real trading results yet"), 0);
+		realRow->SetField(new BStringField("No real trading results"), 0);
 		realRow->SetField(new BStringField(""), 1);
 		realRow->SetField(new BStringField(""), 2);
 		realRow->SetField(new BStringField(""), 3);
 		realRow->SetField(new BStringField(""), 4);
+		realRow->SetField(new BStringField(""), 5);
 		realBacktestsView->AddRow(realRow);
 
 		LOG_INFO("No backtest results in database");
@@ -576,6 +591,15 @@ void DashboardView::LoadRecentBacktests() {
 		std::ostringstream tradesStr;
 		tradesStr << result.totalTrades;
 
+		// Format date (MM/DD/YY)
+		std::string dateStr = "???";
+		if (result.createdAt > 0) {
+			struct tm* timeinfo = localtime(&result.createdAt);
+			char buffer[20];
+			strftime(buffer, sizeof(buffer), "%m/%d/%y", timeinfo);
+			dateStr = buffer;
+		}
+
 		// Create row and add fields
 		BRow* row = new BRow();
 		row->SetField(new BStringField(result.recipeName.c_str()), 0);
@@ -583,16 +607,18 @@ void DashboardView::LoadRecentBacktests() {
 		row->SetField(new BStringField(returnStr.str().c_str()), 2);
 		row->SetField(new BStringField(sharpeStr.str().c_str()), 3);
 		row->SetField(new BStringField(tradesStr.str().c_str()), 4);
+		row->SetField(new BStringField(dateStr.c_str()), 5);
 		simulatedBacktestsView->AddRow(row);
 	}
 
 	// Add placeholder for real trading
 	BRow* realRow = new BRow();
-	realRow->SetField(new BStringField("No real trading results yet"), 0);
+	realRow->SetField(new BStringField("No real trading results"), 0);
 	realRow->SetField(new BStringField(""), 1);
 	realRow->SetField(new BStringField(""), 2);
 	realRow->SetField(new BStringField(""), 3);
 	realRow->SetField(new BStringField(""), 4);
+	realRow->SetField(new BStringField(""), 5);
 	realBacktestsView->AddRow(realRow);
 
 	// Update count label

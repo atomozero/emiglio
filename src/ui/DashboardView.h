@@ -72,6 +72,7 @@ private:
 	BStringView* recipesCountLabel;
 	BStringView* backtestsCountLabel;
 	BStringView* candlesCountLabel;
+	BStringView* appVersionLabel;
 
 	// Recent backtests tables (split by type)
 	BColumnListView* simulatedBacktestsView;
