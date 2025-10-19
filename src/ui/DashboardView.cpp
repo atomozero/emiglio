@@ -113,9 +113,9 @@ void DashboardView::BuildLayout() {
 
 	// ========== SIMULATED PORTFOLIO BOX ==========
 	BBox* simulatedBox = new BBox("simulated_box");
-	simulatedBox->SetLabel("Simulated Portfolio");
+	simulatedBox->SetLabel("Backtest Portfolio");
 
-	BStringView* simModeLabel = new BStringView("", "Mode: Paper Trading");
+	BStringView* simModeLabel = new BStringView("", "Source: Historical Simulations");
 	simModeLabel->SetFont(&labelFont);
 	rgb_color mutedColor = tint_color(ui_color(B_PANEL_TEXT_COLOR), B_LIGHTEN_1_TINT);
 	simModeLabel->SetHighColor(mutedColor);
@@ -157,24 +157,24 @@ void DashboardView::BuildLayout() {
 		.AddGlue()
 		.End();
 
-	// ========== REAL PORTFOLIO BOX ==========
+	// ========== LIVE PORTFOLIO BOX ==========
 	BBox* realBox = new BBox("real_box");
-	realBox->SetLabel("Real Portfolio");
+	realBox->SetLabel("Live Portfolio");
 
-	BStringView* realModeLabel = new BStringView("", "Mode: Live Trading");
+	BStringView* realModeLabel = new BStringView("", "Source: Exchange Account (Real Money)");
 	realModeLabel->SetFont(&labelFont);
 	realModeLabel->SetHighColor(mutedColor);
 
-	realCapitalLabel = new BStringView("", "Capital: Loading...");
-	realCashLabel = new BStringView("", "Cash: Loading...");
-	realInvestedLabel = new BStringView("", "Invested: Loading...");
+	realCapitalLabel = new BStringView("", ("Capital: " + currencySymbol + "0.00").c_str());
+	realCashLabel = new BStringView("", ("Cash: " + currencySymbol + "0.00").c_str());
+	realInvestedLabel = new BStringView("", ("Invested: " + currencySymbol + "0.00").c_str());
 
 	realCapitalLabel->SetFont(&bigValueFont);
 	realCashLabel->SetFont(&valueFont);
 	realInvestedLabel->SetFont(&valueFont);
 
-	realPnLLabel = new BStringView("", "P&L: Loading...");
-	realPnLPercentLabel = new BStringView("", "Total P&L %: Loading...");
+	realPnLLabel = new BStringView("", ("P&L: " + currencySymbol + "0.00").c_str());
+	realPnLPercentLabel = new BStringView("", "Total P&L %: 0.00%");
 
 	realPnLLabel->SetFont(&valueFont);
 	realPnLPercentLabel->SetFont(&valueFont);
@@ -215,9 +215,9 @@ void DashboardView::BuildLayout() {
 		.AddGlue()
 		.End();
 
-	// ========== LIVE PORTFOLIO BOX ==========
+	// ========== EXCHANGE ACCOUNT BOX ==========
 	BBox* liveBox = new BBox("live_box");
-	liveBox->SetLabel("Live Trading");
+	liveBox->SetLabel("Exchange Account Details");
 
 	binanceStatusLabel = new BStringView("", "Status: Not connected");
 	binanceStatusLabel->SetFont(&labelFont);
@@ -325,18 +325,18 @@ void DashboardView::BuildLayout() {
 		.Add(titleView)
 		.Add(subtitleView)
 		.AddStrut(4)
-		// Row 1: Simulated (left) + Real Trading (right)
+		// Row 1: Backtest/Live Portfolios (left) + Exchange/Real Backtests (right)
 		.AddGroup(B_HORIZONTAL, 6)
-			// Left column: Simulated + Real Portfolio sections
+			// Left column: Backtest + Live Portfolio sections
 			.AddGroup(B_VERTICAL, 6)
-				.Add(simulatedBox, 1.0f)
-				.Add(realBox, 1.0f)
-				.Add(simulatedBacktestsBox, 2.0f)
+				.Add(simulatedBox, 1.0f)  // Backtest Portfolio
+				.Add(realBox, 1.0f)        // Live Portfolio
+				.Add(simulatedBacktestsBox, 2.0f)  // Simulated Backtests
 			.End()
-			// Right column: Live Trading + Real Trading Backtests sections
+			// Right column: Exchange Account + Real Trading Backtests
 			.AddGroup(B_VERTICAL, 6)
-				.Add(liveBox, 1.0f)
-				.Add(realBacktestsBox, 2.0f)
+				.Add(liveBox, 1.0f)        // Exchange Account Details
+				.Add(realBacktestsBox, 2.0f)  // Real Backtests
 			.End()
 		.End()
 		// Row 2: System Status (full width)
