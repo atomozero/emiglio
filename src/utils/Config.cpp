@@ -51,9 +51,36 @@ bool Config::load(const std::string& configPath) {
 	try {
 		JsonParser parser;
 		if (parser.parseFile(configPath)) {
-			// Read all key-value pairs from JSON
-			// This is a simplified implementation
-			// In a real implementation, we'd traverse the JSON tree
+			// Read known configuration keys from JSON
+			// Load app settings
+			if (parser.has("app.name")) {
+				configMap["app.name"] = parser.getString("app.name");
+			}
+			if (parser.has("app.version")) {
+				configMap["app.version"] = parser.getString("app.version");
+			}
+
+			// Load log settings
+			if (parser.has("log.level")) {
+				configMap["log.level"] = parser.getString("log.level");
+			}
+			if (parser.has("log.file")) {
+				configMap["log.file"] = parser.getString("log.file");
+			}
+
+			// Load directory paths
+			if (parser.has("data.dir")) {
+				configMap["data.dir"] = parser.getString("data.dir");
+			}
+			if (parser.has("recipes.dir")) {
+				configMap["recipes.dir"] = parser.getString("recipes.dir");
+			}
+
+			// Load display settings (IMPORTANT: currency preference)
+			if (parser.has("display.currency")) {
+				configMap["display.currency"] = parser.getString("display.currency");
+			}
+
 			loaded = true;
 			LOG_INFO("Configuration loaded from: " + configPath);
 			return true;

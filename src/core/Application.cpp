@@ -24,6 +24,12 @@ public:
 	}
 
 	virtual void ReadyToRun() {
+		// Load configuration from file
+		Config& config = Config::getInstance();
+		std::string configPath = config.getConfigDir() + "/config.json";
+		config.load(configPath);
+		LOG_INFO("Configuration loaded from: " + configPath);
+
 		// Create and show main window
 		mainWindow = new UI::MainWindow();
 		mainWindow->Show();
