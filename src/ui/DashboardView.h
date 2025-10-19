@@ -85,7 +85,8 @@ private:
 	enum {
 		MSG_AUTO_REFRESH = 'arfr',
 		MSG_RUN_BACKTEST = 'rbkt',
-		MSG_REFRESH_BINANCE = 'rfbn'
+		MSG_REFRESH_BINANCE = 'rfbn',
+		MSG_SETTINGS_CHANGED = 'stch'
 	};
 };
 

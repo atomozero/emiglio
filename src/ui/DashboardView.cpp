@@ -119,16 +119,16 @@ void DashboardView::BuildLayout() {
 	rgb_color mutedColor = tint_color(ui_color(B_PANEL_TEXT_COLOR), B_LIGHTEN_1_TINT);
 	simModeLabel->SetHighColor(mutedColor);
 
-	totalCapitalLabel = new BStringView("", ("Capital: " + currencySymbol + "10,000.00").c_str());
-	availableCashLabel = new BStringView("", ("Cash: " + currencySymbol + "10,000.00").c_str());
-	investedLabel = new BStringView("", ("Invested: " + currencySymbol + "0.00").c_str());
+	totalCapitalLabel = new BStringView("", "Capital: Loading...");
+	availableCashLabel = new BStringView("", "Cash: Loading...");
+	investedLabel = new BStringView("", "Invested: Loading...");
 
 	totalCapitalLabel->SetFont(&valueFont);
 	availableCashLabel->SetFont(&valueFont);
 	investedLabel->SetFont(&valueFont);
 
-	totalPnLLabel = new BStringView("", ("P&L: " + currencySymbol + "0.00").c_str());
-	totalPnLPercentLabel = new BStringView("", "Total P&L %: 0.00%");
+	totalPnLLabel = new BStringView("", "P&L: Loading...");
+	totalPnLPercentLabel = new BStringView("", "Total P&L %: Loading...");
 	totalPnLLabel->SetFont(&bigValueFont);
 	totalPnLPercentLabel->SetFont(&valueFont);
 
@@ -149,9 +149,9 @@ void DashboardView::BuildLayout() {
 	BBox* systemBox = new BBox("system_box");
 	systemBox->SetLabel("System Status");
 
-	recipesCountLabel = new BStringView("", "Strategies: 14");
-	candlesCountLabel = new BStringView("", "Data Points: 0");
-	backtestsCountLabel = new BStringView("", "Backtest Results: 109");
+	recipesCountLabel = new BStringView("", "Strategies: Loading...");
+	candlesCountLabel = new BStringView("", "Data Points: Loading...");
+	backtestsCountLabel = new BStringView("", "Backtest Results: Loading...");
 
 	recipesCountLabel->SetFont(&valueFont);
 	candlesCountLabel->SetFont(&valueFont);
@@ -274,6 +274,13 @@ void DashboardView::MessageReceived(BMessage* message) {
 			// Load both Binance portfolio and real portfolio summary
 			LoadBinancePortfolio();
 			LoadRealPortfolioSummary();
+			break;
+
+		case MSG_SETTINGS_CHANGED:
+			// Settings changed (e.g., currency preference)
+			// Refresh all data with new settings
+			LOG_INFO("Settings changed - refreshing dashboard");
+			RefreshData();
 			break;
 
 		default:
