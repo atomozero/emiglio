@@ -90,179 +90,123 @@ void DashboardView::BuildLayout() {
 	// ========== HEADER SECTION ==========
 	BStringView* titleView = new BStringView("", "Dashboard");
 	BFont titleFont(be_bold_font);
-	titleFont.SetSize(22);
+	titleFont.SetSize(18);
 	titleView->SetFont(&titleFont);
 
 	BStringView* subtitleView = new BStringView("", "Portfolio Overview & System Status");
 	BFont subtitleFont(be_plain_font);
-	subtitleFont.SetSize(10);
+	subtitleFont.SetSize(11);
 	subtitleView->SetFont(&subtitleFont);
-	subtitleView->SetHighColor(120, 120, 120);
+	rgb_color subtitleColor = tint_color(ui_color(B_PANEL_TEXT_COLOR), B_LIGHTEN_1_TINT);
+	subtitleView->SetHighColor(subtitleColor);
 
-	// ========== CARD 1: PAPER TRADING PORTFOLIO ==========
-	BBox* paperCard = new BBox("paper_card");
-	paperCard->SetLabel("Paper Trading Portfolio");
+	// Common fonts
+	BFont labelFont(be_plain_font);
+	labelFont.SetSize(11);
 
-	BView* paperBg = new BView("paper_bg", B_WILL_DRAW);
-	paperBg->SetViewColor(242, 238, 230); // Softer warm beige
+	BFont valueFont(be_plain_font);
+	valueFont.SetSize(12);
 
-	// Badge
-	BStringView* paperBadge = new BStringView("", "● SIMULATED");
-	BFont badgeFont(be_bold_font);
-	badgeFont.SetSize(9);
-	paperBadge->SetFont(&badgeFont);
-	paperBadge->SetHighColor(200, 140, 0);
+	BFont bigValueFont(be_bold_font);
+	bigValueFont.SetSize(15);
 
-	// Values
-	totalCapitalLabel = new BStringView("", ("Capital: " + currencySymbol + "0.00").c_str());
-	availableCashLabel = new BStringView("", ("Cash: " + currencySymbol + "0.00").c_str());
+	// ========== SIMULATED PORTFOLIO BOX ==========
+	BBox* simulatedBox = new BBox("simulated_box");
+	simulatedBox->SetLabel("Simulated Portfolio");
+
+	BStringView* simModeLabel = new BStringView("", "Mode: Paper Trading");
+	simModeLabel->SetFont(&labelFont);
+	rgb_color mutedColor = tint_color(ui_color(B_PANEL_TEXT_COLOR), B_LIGHTEN_1_TINT);
+	simModeLabel->SetHighColor(mutedColor);
+
+	totalCapitalLabel = new BStringView("", ("Capital: " + currencySymbol + "10,000.00").c_str());
+	availableCashLabel = new BStringView("", ("Cash: " + currencySymbol + "10,000.00").c_str());
 	investedLabel = new BStringView("", ("Invested: " + currencySymbol + "0.00").c_str());
+
+	totalCapitalLabel->SetFont(&valueFont);
+	availableCashLabel->SetFont(&valueFont);
+	investedLabel->SetFont(&valueFont);
+
 	totalPnLLabel = new BStringView("", ("P&L: " + currencySymbol + "0.00").c_str());
-	totalPnLPercentLabel = new BStringView("", "0.00%");
+	totalPnLPercentLabel = new BStringView("", "Total P&L %: 0.00%");
+	totalPnLLabel->SetFont(&bigValueFont);
+	totalPnLPercentLabel->SetFont(&valueFont);
 
-	BFont dataFont(be_plain_font);
-	dataFont.SetSize(13);
-	totalCapitalLabel->SetFont(&dataFont);
-	availableCashLabel->SetFont(&dataFont);
-	investedLabel->SetFont(&dataFont);
-
-	BFont pnlFont(be_bold_font);
-	pnlFont.SetSize(16);
-	totalPnLLabel->SetFont(&pnlFont);
-	totalPnLPercentLabel->SetFont(&pnlFont);
-
-	BLayoutBuilder::Group<>(paperBg, B_VERTICAL, 6)
-		.SetInsets(10, 8, 10, 8)
-		.Add(paperBadge)
+	BLayoutBuilder::Group<>(simulatedBox, B_VERTICAL, 4)
+		.SetInsets(B_USE_DEFAULT_SPACING)
+		.Add(simModeLabel)
 		.AddStrut(2)
 		.Add(totalCapitalLabel)
 		.Add(availableCashLabel)
 		.Add(investedLabel)
 		.AddStrut(4)
-		.AddGroup(B_HORIZONTAL)
-			.Add(totalPnLLabel)
-			.AddGlue()
-			.Add(totalPnLPercentLabel)
-		.End()
+		.Add(totalPnLLabel)
+		.Add(totalPnLPercentLabel)
+		.AddGlue()
 		.End();
 
-	BLayoutBuilder::Group<>(paperCard, B_VERTICAL, 0)
-		.Add(paperBg)
-		.End();
+	// ========== SYSTEM STATUS BOX ==========
+	BBox* systemBox = new BBox("system_box");
+	systemBox->SetLabel("System Status");
 
-	// ========== CARD 2: SYSTEM STATISTICS ==========
-	BBox* statsCard = new BBox("stats_card");
-	statsCard->SetLabel("System Status");
-
-	BView* statsBg = new BView("stats_bg", B_WILL_DRAW);
-	statsBg->SetViewColor(235, 240, 245); // Softer blue-gray
-
-	recipesCountLabel = new BStringView("", "Strategies: 0");
-	backtestsCountLabel = new BStringView("", "Backtests: 0");
+	recipesCountLabel = new BStringView("", "Strategies: 14");
 	candlesCountLabel = new BStringView("", "Data Points: 0");
+	backtestsCountLabel = new BStringView("", "Backtest Results: 109");
 
-	BFont statsFont(be_plain_font);
-	statsFont.SetSize(13);
-	recipesCountLabel->SetFont(&statsFont);
-	backtestsCountLabel->SetFont(&statsFont);
-	candlesCountLabel->SetFont(&statsFont);
+	recipesCountLabel->SetFont(&valueFont);
+	candlesCountLabel->SetFont(&valueFont);
+	backtestsCountLabel->SetFont(&valueFont);
 
-	BLayoutBuilder::Group<>(statsBg, B_VERTICAL, 6)
-		.SetInsets(10, 8, 10, 8)
-		.AddStrut(4)
+	BLayoutBuilder::Group<>(systemBox, B_VERTICAL, 4)
+		.SetInsets(B_USE_DEFAULT_SPACING)
 		.Add(recipesCountLabel)
 		.Add(candlesCountLabel)
 		.Add(backtestsCountLabel)
-		.AddStrut(4)
+		.AddGlue()
 		.End();
 
-	BLayoutBuilder::Group<>(statsCard, B_VERTICAL, 0)
-		.Add(statsBg)
-		.End();
-
-	// ========== CARD 3: REAL PORTFOLIO SUMMARY ==========
-	BBox* realCard = new BBox("real_card");
-	realCard->SetLabel("Live Portfolio Summary");
-
-	BView* realBg = new BView("real_bg", B_WILL_DRAW);
-	realBg->SetViewColor(235, 245, 235); // Softer light green
-
-	// Badge
-	BStringView* realBadge = new BStringView("", "● LIVE TRADING");
-	realBadge->SetFont(&badgeFont);
-	realBadge->SetHighColor(0, 140, 0);
-
-	realTotalValueLabel = new BStringView("", ("Total: " + currencySymbol + "0.00").c_str());
-	realExchangeCountLabel = new BStringView("", "Exchanges: 0");
-	realLastUpdateLabel = new BStringView("", "Last Update: Never");
-
-	BFont realValueFont(be_bold_font);
-	realValueFont.SetSize(16);
-	realTotalValueLabel->SetFont(&realValueFont);
-	realTotalValueLabel->SetHighColor(0, 120, 0);
-
-	BFont realSmallFont(be_plain_font);
-	realSmallFont.SetSize(11);
-	realExchangeCountLabel->SetFont(&realSmallFont);
-	realLastUpdateLabel->SetFont(&realSmallFont);
-	realExchangeCountLabel->SetHighColor(80, 80, 80);
-	realLastUpdateLabel->SetHighColor(80, 80, 80);
-
-	BLayoutBuilder::Group<>(realBg, B_VERTICAL, 5)
-		.SetInsets(10, 8, 10, 8)
-		.Add(realBadge)
-		.AddStrut(4)
-		.Add(realTotalValueLabel)
-		.AddStrut(4)
-		.Add(realExchangeCountLabel)
-		.Add(realLastUpdateLabel)
-		.AddStrut(2)
-		.End();
-
-	BLayoutBuilder::Group<>(realCard, B_VERTICAL, 0)
-		.Add(realBg)
-		.End();
-
-	// ========== CARD 4: BINANCE PORTFOLIO (DETAILED) ==========
-	BBox* binanceCard = new BBox("binance_card");
-	binanceCard->SetLabel("Binance Exchange");
-
-	BView* binanceBg = new BView("binance_bg", B_WILL_DRAW);
-	binanceBg->SetViewColor(238, 245, 238); // Softer green
+	// ========== LIVE PORTFOLIO BOX ==========
+	BBox* liveBox = new BBox("live_box");
+	liveBox->SetLabel("Live Trading");
 
 	binanceStatusLabel = new BStringView("", "Status: Not connected");
-	binanceTotalValueLabel = new BStringView("", "");
+	binanceStatusLabel->SetFont(&labelFont);
+	binanceStatusLabel->SetHighColor(mutedColor);
 
-	BFont binanceStatusFont(be_bold_font);
-	binanceStatusFont.SetSize(12);
-	binanceStatusLabel->SetFont(&binanceStatusFont);
+	realTotalValueLabel = new BStringView("", ("Total: " + currencySymbol + "0.00").c_str());
+	realTotalValueLabel->SetFont(&bigValueFont);
 
-	BFont binanceValueFont(be_plain_font);
-	binanceValueFont.SetSize(13);
-	binanceTotalValueLabel->SetFont(&binanceValueFont);
-	binanceTotalValueLabel->SetHighColor(0, 100, 0);
+	realExchangeCountLabel = new BStringView("", "Exchanges: 0");
+	realLastUpdateLabel = new BStringView("", "Last Update: Never");
+	realExchangeCountLabel->SetFont(&valueFont);
+	realLastUpdateLabel->SetFont(&labelFont);
+	realLastUpdateLabel->SetHighColor(mutedColor);
 
-	// Balances table
+	// Balances table (compact)
 	binanceBalancesView = new BColumnListView("binance_balances", B_WILL_DRAW, B_FANCY_BORDER, true);
-	binanceBalancesView->AddColumn(new BStringColumn("Asset", 70, 50, 120, B_TRUNCATE_END), 0);
-	binanceBalancesView->AddColumn(new BStringColumn("Total", 120, 80, 180, B_TRUNCATE_END), 1);
-	binanceBalancesView->AddColumn(new BStringColumn("Free", 120, 80, 180, B_TRUNCATE_END), 2);
-	binanceBalancesView->AddColumn(new BStringColumn("Locked", 120, 80, 180, B_TRUNCATE_END), 3);
-	binanceBalancesView->SetExplicitMinSize(BSize(B_SIZE_UNSET, 100));
-	binanceBalancesView->SetExplicitMaxSize(BSize(B_SIZE_UNSET, 140));
+	binanceBalancesView->AddColumn(new BStringColumn("Asset", 80, 60, 100, B_TRUNCATE_END), 0);
+	binanceBalancesView->AddColumn(new BStringColumn("Total", 100, 80, 140, B_TRUNCATE_END), 1);
+	binanceBalancesView->AddColumn(new BStringColumn("Free", 100, 80, 140, B_TRUNCATE_END), 2);
+	binanceBalancesView->AddColumn(new BStringColumn("Locked", 100, 80, 140, B_TRUNCATE_END), 3);
+	binanceBalancesView->SetExplicitMinSize(BSize(B_SIZE_UNSET, 80));
+	binanceBalancesView->SetExplicitMaxSize(BSize(B_SIZE_UNSET, 100));
+	binanceBalancesView->SetExplicitPreferredSize(BSize(B_SIZE_UNSET, 90));
 
 	binanceBalancesScroll = new BScrollView("binance_scroll", binanceBalancesView,
 	                                        0, false, true);
 
-	refreshBinanceButton = new BButton("Refresh", new BMessage(MSG_REFRESH_BINANCE));
+	refreshBinanceButton = new BButton("Refresh Binance", new BMessage(MSG_REFRESH_BINANCE));
 
-	BLayoutBuilder::Group<>(binanceBg, B_VERTICAL, 5)
-		.SetInsets(8, 6, 8, 6)
-		.AddGroup(B_HORIZONTAL)
-			.Add(binanceStatusLabel)
-			.AddGlue()
-			.Add(binanceTotalValueLabel)
-		.End()
+	binanceTotalValueLabel = new BStringView("", "");
+	binanceTotalValueLabel->SetFont(&valueFont);
+
+	BLayoutBuilder::Group<>(liveBox, B_VERTICAL, 3)
+		.SetInsets(B_USE_DEFAULT_SPACING)
+		.Add(binanceStatusLabel)
+		.AddStrut(2)
+		.Add(realTotalValueLabel)
+		.Add(realExchangeCountLabel)
+		.Add(realLastUpdateLabel)
 		.AddStrut(4)
 		.Add(binanceBalancesScroll)
 		.AddStrut(2)
@@ -272,53 +216,46 @@ void DashboardView::BuildLayout() {
 		.End()
 		.End();
 
-	BLayoutBuilder::Group<>(binanceCard, B_VERTICAL, 0)
-		.Add(binanceBg)
-		.End();
+	// ========== RECENT BACKTESTS BOX ==========
+	BBox* backtestsBox = new BBox("backtests_box");
+	backtestsBox->SetLabel("Recent Backtest Results");
 
-	// ========== RECENT BACKTESTS ==========
 	recentBacktestsView = new BListView("recent_backtests");
-	recentBacktestsView->SetExplicitMinSize(BSize(B_SIZE_UNSET, 120));
-	recentBacktestsView->SetExplicitMaxSize(BSize(B_SIZE_UNSET, 180));
+	recentBacktestsView->SetExplicitMinSize(BSize(B_SIZE_UNSET, 100));
+	recentBacktestsView->SetExplicitMaxSize(BSize(B_SIZE_UNSET, 140));
+	recentBacktestsView->SetExplicitPreferredSize(BSize(B_SIZE_UNSET, 120));
+
 	recentBacktestsScroll = new BScrollView("recent_scroll", recentBacktestsView,
 	                                        0, false, true);
 
-	BBox* backtestsCard = new BBox("backtests_card");
-	backtestsCard->SetLabel("Recent Backtest Results");
-
-	BLayoutBuilder::Group<>(backtestsCard, B_VERTICAL, 4)
-		.SetInsets(8, 6, 8, 6)
-		.Add(recentBacktestsScroll)
-		.End();
-
-	// ========== ACTION BUTTONS ==========
 	runBacktestButton = new BButton("New Backtest", new BMessage(MSG_RUN_BACKTEST));
 
-	// ========== MAIN LAYOUT (2-COLUMN GRID) ==========
-	BLayoutBuilder::Group<>(this, B_VERTICAL, 8)
-		.SetInsets(10, 8, 10, 8)
-		// Header
-		.Add(titleView)
-		.Add(subtitleView)
-		.AddStrut(6)
-		// Top Row: Paper Portfolio + Stats
-		.AddGroup(B_HORIZONTAL, 8)
-			.Add(paperCard, 2)
-			.Add(statsCard, 1)
-		.End()
-		// Middle Row: Real Summary + Binance Details
-		.AddGroup(B_HORIZONTAL, 8)
-			.Add(realCard, 1)
-			.Add(binanceCard, 2)
-		.End()
-		// Bottom: Recent Backtests
-		.Add(backtestsCard, 1.0)
-		// Actions
-		.AddStrut(4)
+	BLayoutBuilder::Group<>(backtestsBox, B_VERTICAL, 3)
+		.SetInsets(B_USE_DEFAULT_SPACING)
+		.Add(recentBacktestsScroll)
+		.AddStrut(2)
 		.AddGroup(B_HORIZONTAL)
 			.Add(runBacktestButton)
 			.AddGlue()
 		.End()
+		.End();
+
+	// ========== MAIN LAYOUT (CLEAN GRID) ==========
+	BLayoutBuilder::Group<>(this, B_VERTICAL, 6)
+		.SetInsets(B_USE_DEFAULT_SPACING)
+		.Add(titleView)
+		.Add(subtitleView)
+		.AddStrut(4)
+		// Row 1: Simulated + System Status
+		.AddGroup(B_HORIZONTAL, 6)
+			.Add(simulatedBox, 2.0f)
+			.Add(systemBox, 1.0f)
+		.End()
+		// Row 2: Live Trading (full width)
+		.Add(liveBox, 1.0f)
+		// Row 3: Recent Backtests
+		.Add(backtestsBox, 1.0f)
+		.AddGlue()
 		.End();
 }
 
