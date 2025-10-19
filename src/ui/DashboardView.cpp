@@ -268,24 +268,27 @@ void DashboardView::BuildLayout() {
 		.Add(realBacktestsScroll)
 		.End();
 
-	// ========== MAIN LAYOUT (CLEAN GRID) ==========
+	// ========== MAIN LAYOUT (ORGANIZED BY TYPE) ==========
 	BLayoutBuilder::Group<>(this, B_VERTICAL, 6)
 		.SetInsets(B_USE_DEFAULT_SPACING)
 		.Add(titleView)
 		.Add(subtitleView)
 		.AddStrut(4)
-		// Row 1: Simulated + System Status
+		// Row 1: Simulated (left) + Real Trading (right)
 		.AddGroup(B_HORIZONTAL, 6)
-			.Add(simulatedBox, 2.0f)
-			.Add(systemBox, 1.0f)
+			// Left column: All Simulated sections
+			.AddGroup(B_VERTICAL, 6)
+				.Add(simulatedBox, 1.0f)
+				.Add(simulatedBacktestsBox, 2.0f)
+			.End()
+			// Right column: All Real Trading sections
+			.AddGroup(B_VERTICAL, 6)
+				.Add(liveBox, 1.0f)
+				.Add(realBacktestsBox, 2.0f)
+			.End()
 		.End()
-		// Row 2: Live Trading (full width)
-		.Add(liveBox, 1.0f)
-		// Row 3: Recent Backtests (Simulated + Real)
-		.AddGroup(B_HORIZONTAL, 6)
-			.Add(simulatedBacktestsBox, 1.0f)
-			.Add(realBacktestsBox, 1.0f)
-		.End()
+		// Row 2: System Status (full width)
+		.Add(systemBox, 0.5f)
 		.AddGlue()
 		.End();
 }
