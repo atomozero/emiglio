@@ -70,10 +70,10 @@ private:
 	BStringView* backtestsCountLabel;
 	BStringView* candlesCountLabel;
 
-	// Recent backtests lists (split by type)
-	BListView* simulatedBacktestsView;
+	// Recent backtests tables (split by type)
+	BColumnListView* simulatedBacktestsView;
 	BScrollView* simulatedBacktestsScroll;
-	BListView* realBacktestsView;
+	BColumnListView* realBacktestsView;
 	BScrollView* realBacktestsScroll;
 
 	// Buttons
