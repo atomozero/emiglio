@@ -172,8 +172,8 @@ void ChartsView::BuildLayout() {
 	// Indicator toggles
 	emaButton = new BButton("Show EMA(20)", new BMessage(MSG_TOGGLE_EMA));
 	bollingerButton = new BButton("Show Bollinger", new BMessage(MSG_TOGGLE_BOLLINGER));
-	rsiButton = new BButton("RSI (TODO)", new BMessage(MSG_TOGGLE_RSI));
-	rsiButton->SetEnabled(false);
+	rsiButton = new BButton("Show RSI", new BMessage(MSG_TOGGLE_RSI));
+	rsiButton->SetEnabled(false); // Not yet implemented
 
 	statusLabel = new BStringView("", "Ready");
 	statsLabel = new BStringView("", "");
