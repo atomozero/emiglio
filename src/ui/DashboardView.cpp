@@ -216,28 +216,45 @@ void DashboardView::BuildLayout() {
 		.End()
 		.End();
 
-	// ========== RECENT BACKTESTS BOX ==========
-	BBox* backtestsBox = new BBox("backtests_box");
-	backtestsBox->SetLabel("Recent Backtest Results");
+	// ========== RECENT BACKTESTS - SIMULATED ==========
+	BBox* simulatedBacktestsBox = new BBox("simulated_backtests_box");
+	simulatedBacktestsBox->SetLabel("Recent Backtests - Simulated");
 
-	recentBacktestsView = new BListView("recent_backtests");
-	recentBacktestsView->SetExplicitMinSize(BSize(B_SIZE_UNSET, 100));
-	recentBacktestsView->SetExplicitMaxSize(BSize(B_SIZE_UNSET, 140));
-	recentBacktestsView->SetExplicitPreferredSize(BSize(B_SIZE_UNSET, 120));
+	simulatedBacktestsView = new BListView("simulated_backtests");
+	simulatedBacktestsView->SetExplicitMinSize(BSize(B_SIZE_UNSET, 100));
+	simulatedBacktestsView->SetExplicitMaxSize(BSize(B_SIZE_UNSET, 120));
+	simulatedBacktestsView->SetExplicitPreferredSize(BSize(B_SIZE_UNSET, 110));
 
-	recentBacktestsScroll = new BScrollView("recent_scroll", recentBacktestsView,
-	                                        0, false, true);
+	simulatedBacktestsScroll = new BScrollView("simulated_scroll", simulatedBacktestsView,
+	                                           0, false, true);
 
 	runBacktestButton = new BButton("New Backtest", new BMessage(MSG_RUN_BACKTEST));
 
-	BLayoutBuilder::Group<>(backtestsBox, B_VERTICAL, 3)
+	BLayoutBuilder::Group<>(simulatedBacktestsBox, B_VERTICAL, 3)
 		.SetInsets(B_USE_DEFAULT_SPACING)
-		.Add(recentBacktestsScroll)
+		.Add(simulatedBacktestsScroll)
 		.AddStrut(2)
 		.AddGroup(B_HORIZONTAL)
 			.Add(runBacktestButton)
 			.AddGlue()
 		.End()
+		.End();
+
+	// ========== RECENT BACKTESTS - REAL TRADING ==========
+	BBox* realBacktestsBox = new BBox("real_backtests_box");
+	realBacktestsBox->SetLabel("Recent Backtests - Real Trading");
+
+	realBacktestsView = new BListView("real_backtests");
+	realBacktestsView->SetExplicitMinSize(BSize(B_SIZE_UNSET, 100));
+	realBacktestsView->SetExplicitMaxSize(BSize(B_SIZE_UNSET, 120));
+	realBacktestsView->SetExplicitPreferredSize(BSize(B_SIZE_UNSET, 110));
+
+	realBacktestsScroll = new BScrollView("real_scroll", realBacktestsView,
+	                                      0, false, true);
+
+	BLayoutBuilder::Group<>(realBacktestsBox, B_VERTICAL, 3)
+		.SetInsets(B_USE_DEFAULT_SPACING)
+		.Add(realBacktestsScroll)
 		.End();
 
 	// ========== MAIN LAYOUT (CLEAN GRID) ==========
@@ -253,8 +270,11 @@ void DashboardView::BuildLayout() {
 		.End()
 		// Row 2: Live Trading (full width)
 		.Add(liveBox, 1.0f)
-		// Row 3: Recent Backtests
-		.Add(backtestsBox, 1.0f)
+		// Row 3: Recent Backtests (Simulated + Real)
+		.AddGroup(B_HORIZONTAL, 6)
+			.Add(simulatedBacktestsBox, 1.0f)
+			.Add(realBacktestsBox, 1.0f)
+		.End()
 		.AddGlue()
 		.End();
 }
@@ -388,11 +408,13 @@ void DashboardView::LoadPortfolioStats() {
 }
 
 void DashboardView::LoadRecentBacktests() {
-	recentBacktestsView->MakeEmpty();
+	simulatedBacktestsView->MakeEmpty();
+	realBacktestsView->MakeEmpty();
 
 	// Query database for recent backtest results (using shared instance)
 	if (!dataStorage) {
-		recentBacktestsView->AddItem(new BStringItem("Failed to load backtest results"));
+		simulatedBacktestsView->AddItem(new BStringItem("Failed to load results"));
+		realBacktestsView->AddItem(new BStringItem("Failed to load results"));
 		LOG_WARNING("DataStorage not initialized");
 		return;
 	}
@@ -400,32 +422,27 @@ void DashboardView::LoadRecentBacktests() {
 	std::vector<BacktestResult> results = dataStorage->getAllBacktestResults();
 
 	if (results.empty()) {
-		BStringItem* header = new BStringItem("No backtest results available");
-		BFont headerFont(be_bold_font);
-		headerFont.SetSize(11);
-		recentBacktestsView->AddItem(header);
-		recentBacktestsView->AddItem(new BStringItem(""));
-		recentBacktestsView->AddItem(new BStringItem("→ Click 'New Backtest' below to run your first backtest"));
-		recentBacktestsView->AddItem(new BStringItem("→ Or go to the 'Backtest' tab to configure parameters"));
-		recentBacktestsView->AddItem(new BStringItem(""));
-		recentBacktestsView->AddItem(new BStringItem("Results will appear here once you run backtests."));
+		simulatedBacktestsView->AddItem(new BStringItem("No results yet"));
+		simulatedBacktestsView->AddItem(new BStringItem(""));
+		simulatedBacktestsView->AddItem(new BStringItem("→ Click 'New Backtest' to start"));
+
+		realBacktestsView->AddItem(new BStringItem("No results yet"));
+		realBacktestsView->AddItem(new BStringItem(""));
+		realBacktestsView->AddItem(new BStringItem("→ Real trading results will appear here"));
 		LOG_INFO("No backtest results in database");
 		return;
 	}
 
-	// Sort by created_at (newest first) and limit to last 10
+	// Sort by created_at (newest first)
 	std::sort(results.begin(), results.end(),
 	          [](const BacktestResult& a, const BacktestResult& b) {
 		          return a.createdAt > b.createdAt;
 	          });
 
-	int maxDisplay = std::min(10, static_cast<int>(results.size()));
+	int maxDisplay = std::min(5, static_cast<int>(results.size()));
 
-	// Add header
-	recentBacktestsView->AddItem(new BStringItem("Recent Backtest Results:"));
-	recentBacktestsView->AddItem(new BStringItem(""));
-
-	// Display results
+	// For now, show all results in simulated (since we don't have a type field yet)
+	// Real trading results section is empty for now
 	for (int i = 0; i < maxDisplay; i++) {
 		const BacktestResult& result = results[i];
 
@@ -450,7 +467,7 @@ void DashboardView::LoadRecentBacktests() {
 		}
 		item << symbol << " | ";
 
-		// Return (color code it)
+		// Return
 		item << "Return: ";
 		if (result.totalReturn > 0) {
 			item << "+";
@@ -465,15 +482,13 @@ void DashboardView::LoadRecentBacktests() {
 		item << "Trades: " << result.totalTrades;
 
 		BStringItem* stringItem = new BStringItem(item.str().c_str());
-
-		// Color code based on return
-		if (result.totalReturn > 0) {
-			// TODO: Can't set item color directly, would need custom list item
-			// For now, just add it normally
-		}
-
-		recentBacktestsView->AddItem(stringItem);
+		simulatedBacktestsView->AddItem(stringItem);
 	}
+
+	// Add placeholder for real trading
+	realBacktestsView->AddItem(new BStringItem("No real trading results yet"));
+	realBacktestsView->AddItem(new BStringItem(""));
+	realBacktestsView->AddItem(new BStringItem("→ Run live trading to see results here"));
 
 	// Update count label
 	std::ostringstream countStr;
