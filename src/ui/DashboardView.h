@@ -43,6 +43,7 @@ private:
 	void BuildLayout();
 	void LoadRecentBacktests();
 	void LoadPortfolioStats();
+	void LoadRealPortfolio();
 	void LoadRealPortfolioSummary();
 	void LoadBinancePortfolio();
 
@@ -55,6 +56,13 @@ private:
 	BStringView* winRateLabel;
 	BStringView* maxDrawdownLabel;
 	BStringView* openPositionsLabel;
+
+	// Real Portfolio stats (from actual exchange accounts)
+	BStringView* realCapitalLabel;
+	BStringView* realCashLabel;
+	BStringView* realInvestedLabel;
+	BStringView* realPnLLabel;
+	BStringView* realPnLPercentLabel;
 
 	// Real Portfolio Summary (aggregated across all exchanges)
 	BStringView* realTotalValueLabel;

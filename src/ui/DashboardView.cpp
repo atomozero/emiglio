@@ -157,6 +157,41 @@ void DashboardView::BuildLayout() {
 		.AddGlue()
 		.End();
 
+	// ========== REAL PORTFOLIO BOX ==========
+	BBox* realBox = new BBox("real_box");
+	realBox->SetLabel("Real Portfolio");
+
+	BStringView* realModeLabel = new BStringView("", "Mode: Live Trading");
+	realModeLabel->SetFont(&labelFont);
+	realModeLabel->SetHighColor(mutedColor);
+
+	realCapitalLabel = new BStringView("", "Capital: Loading...");
+	realCashLabel = new BStringView("", "Cash: Loading...");
+	realInvestedLabel = new BStringView("", "Invested: Loading...");
+
+	realCapitalLabel->SetFont(&bigValueFont);
+	realCashLabel->SetFont(&valueFont);
+	realInvestedLabel->SetFont(&valueFont);
+
+	realPnLLabel = new BStringView("", "P&L: Loading...");
+	realPnLPercentLabel = new BStringView("", "Total P&L %: Loading...");
+
+	realPnLLabel->SetFont(&valueFont);
+	realPnLPercentLabel->SetFont(&valueFont);
+
+	BLayoutBuilder::Group<>(realBox, B_VERTICAL, 4)
+		.SetInsets(B_USE_DEFAULT_SPACING)
+		.Add(realModeLabel)
+		.AddStrut(2)
+		.Add(realCapitalLabel)
+		.Add(realCashLabel)
+		.Add(realInvestedLabel)
+		.AddStrut(4)
+		.Add(realPnLLabel)
+		.Add(realPnLPercentLabel)
+		.AddGlue()
+		.End();
+
 	// ========== SYSTEM STATUS BOX ==========
 	BBox* systemBox = new BBox("system_box");
 	systemBox->SetLabel("System Status");
@@ -292,12 +327,13 @@ void DashboardView::BuildLayout() {
 		.AddStrut(4)
 		// Row 1: Simulated (left) + Real Trading (right)
 		.AddGroup(B_HORIZONTAL, 6)
-			// Left column: All Simulated sections
+			// Left column: Simulated + Real Portfolio sections
 			.AddGroup(B_VERTICAL, 6)
 				.Add(simulatedBox, 1.0f)
+				.Add(realBox, 1.0f)
 				.Add(simulatedBacktestsBox, 2.0f)
 			.End()
-			// Right column: All Real Trading sections
+			// Right column: Live Trading + Real Trading Backtests sections
 			.AddGroup(B_VERTICAL, 6)
 				.Add(liveBox, 1.0f)
 				.Add(realBacktestsBox, 2.0f)
@@ -321,8 +357,9 @@ void DashboardView::MessageReceived(BMessage* message) {
 			break;
 
 		case MSG_REFRESH_BINANCE:
-			// Load both Binance portfolio and real portfolio summary
+			// Load all real portfolio data (balances, summary, stats)
 			LoadBinancePortfolio();
+			LoadRealPortfolio();
 			LoadRealPortfolioSummary();
 			break;
 
@@ -490,6 +527,82 @@ void DashboardView::LoadPortfolioStats() {
 	appVersionLabel->SetText(oss.str().c_str());
 
 	LOG_INFO("Dashboard stats refreshed");
+}
+
+void DashboardView::LoadRealPortfolio() {
+	// Load real portfolio data from exchange accounts (Binance, etc.)
+	double realCapital = 0.0;
+	double realCash = 0.0;
+	double realInvested = 0.0;
+	double initialCapital = 10000.0; // TODO: Store initial capital from first deposit
+
+	// Get user's preferred currency symbol
+	Config& config = Config::getInstance();
+	std::string currencySymbol = config.getCurrencySymbol();
+
+	// Try to load Binance balances
+	if (credentialManager && credentialManager->hasCredentials("binance")) {
+		std::string apiKey, apiSecret;
+		if (credentialManager->loadCredentials("binance", apiKey, apiSecret)) {
+			if (binanceAPI && binanceAPI->init(apiKey, apiSecret)) {
+				std::vector<Balance> balances = binanceAPI->getBalances();
+
+				if (!balances.empty()) {
+					// Calculate total capital from all assets
+					for (const auto& balance : balances) {
+						// For stablecoins, use 1:1 value
+						if (balance.asset == "USDT" || balance.asset == "USDC" ||
+						    balance.asset == "BUSD" || balance.asset == "USD") {
+							realCapital += balance.total;
+							realCash += balance.free;
+							realInvested += balance.locked;
+						}
+						// For other assets, we'd need price conversion
+						// This is a simplified version - real implementation would
+						// query current prices and convert all assets to USD
+					}
+				}
+			}
+		}
+	}
+
+	// Calculate P&L
+	double realPnL = realCapital - initialCapital;
+	double realPnLPercent = initialCapital > 0 ? (realPnL / initialCapital) * 100.0 : 0.0;
+
+	// Format and display values
+	std::ostringstream oss;
+
+	oss.str("");
+	oss << "Capital: " << currencySymbol << std::fixed << std::setprecision(2) << realCapital;
+	realCapitalLabel->SetText(oss.str().c_str());
+
+	oss.str("");
+	oss << "Cash: " << currencySymbol << std::fixed << std::setprecision(2) << realCash;
+	realCashLabel->SetText(oss.str().c_str());
+
+	oss.str("");
+	oss << "Invested: " << currencySymbol << std::fixed << std::setprecision(2) << realInvested;
+	realInvestedLabel->SetText(oss.str().c_str());
+
+	oss.str("");
+	oss << "P&L: " << currencySymbol << std::fixed << std::setprecision(2) << realPnL;
+	realPnLLabel->SetText(oss.str().c_str());
+
+	// Color code P&L
+	if (realPnL > 0) {
+		realPnLLabel->SetHighColor(0, 150, 0); // Green
+		realPnLPercentLabel->SetHighColor(0, 150, 0);
+	} else if (realPnL < 0) {
+		realPnLLabel->SetHighColor(200, 0, 0); // Red
+		realPnLPercentLabel->SetHighColor(200, 0, 0);
+	}
+
+	oss.str("");
+	oss << "Total P&L %: " << std::fixed << std::setprecision(2) << realPnLPercent << "%";
+	realPnLPercentLabel->SetText(oss.str().c_str());
+
+	LOG_INFO("Real portfolio stats loaded");
 }
 
 void DashboardView::LoadRecentBacktests() {
