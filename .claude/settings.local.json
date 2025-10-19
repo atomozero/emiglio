@@ -9,7 +9,9 @@
       "Bash(curl -s \"https://git.haiku-os.org/haiku/plain/headers/private/shared/DateTime.h\" -o src/ui/DateTime.h)",
       "Bash(python3 -m json.tool bollinger_breakout.json)",
       "Bash(timeout 30 /boot/home/Emiglio/scripts/run_all_tests.sh)",
-      "Bash(git add -A)"
+      "Bash(git add -A)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nMajor stability and performance improvements\n\nStability fixes:\n- Fixed Dashboard auto-refresh blocking UI every 5 seconds\n- Implemented thread-safe WebSocket message queue\n- Fixed WebSocket callbacks executing in background thread\n- Added shared DataStorage instance to avoid multiple DB connections\n- Improved error handling and validation\n\nPerformance optimizations:\n- Eliminated 16MB exchangeInfo download at startup (13s saved)\n- Disabled automatic data sync on startup (30-60s saved)\n- Reduced startup time from ~45s to ~2s (22x faster)\n- Simplified ChartsView currency menus with static lists\n- Improved UI responsiveness across all views\n\nBacktest improvements:\n- Added user warning dialog before backtest execution\n- Added data validation (minimum 50 candles required)\n- Better status messages during long operations\n\nDashboard improvements:\n- Reduced whitespace and improved layout\n- Softer background colors for better readability\n- Populated all data fields with actual values\n- Compact card design with better spacing\nEOF\n)\")",
+      "Bash(git push origin master)"
     ],
     "deny": [],
     "ask": []

@@ -13,6 +13,7 @@ SRCS = \
 	src/ui/DatePickerWindow.cpp \
 	src/ui/DashboardView.cpp \
 	src/ui/TradesView.cpp \
+	src/ui/CandlestickChartView.cpp \
 	src/ui/ChartsView.cpp \
 	src/ui/LiveTradingView.cpp \
 	src/ui/RecipeEditorView.cpp \
