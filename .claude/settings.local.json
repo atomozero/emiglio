@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make -f MakefileUI clean)",
+      "Bash(make -f MakefileUI)",
+      "Bash(git log -1 --format='%an %ae')",
+      "Read(//tmp/**)",
+      "Bash(curl -s \"https://git.haiku-os.org/haiku/plain/headers/private/shared/CalendarView.h\" -o src/ui/CalendarView.h)",
+      "Bash(curl -s \"https://git.haiku-os.org/haiku/plain/headers/private/shared/DateTime.h\" -o src/ui/DateTime.h)",
+      "Bash(python3 -m json.tool bollinger_breakout.json)",
+      "Bash(timeout 30 /boot/home/Emiglio/scripts/run_all_tests.sh)",
+      "Bash(git add -A)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

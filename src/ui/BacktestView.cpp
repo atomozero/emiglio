@@ -526,6 +526,20 @@ void BacktestView::RunBacktest() {
 		return;
 	}
 
+	// IMPORTANT: Warn user about UI freeze
+	BAlert* warningAlert = new BAlert("Warning",
+		"IMPORTANT: The backtest will run in the main thread and may take several minutes.\n\n"
+		"The application will appear frozen during this time - this is normal.\n\n"
+		"Large date ranges or high-frequency data may take 5-10 minutes.\n\n"
+		"Do you want to continue?",
+		"Cancel", "Yes, Continue", nullptr,
+		B_WIDTH_AS_USUAL, B_WARNING_ALERT);
+
+	int32 result = warningAlert->Go();
+	if (result == 0) {  // User clicked "Cancel"
+		return;
+	}
+
 	LOG_INFO("Starting backtest with recipe: " + selectedRecipePath);
 
 	// Show progress
@@ -622,6 +636,7 @@ void BacktestView::RunBacktest() {
 		// If not enough data in database, download from Binance
 		if (candles.empty()) {
 			LOG_INFO("No data in database, downloading from Binance...");
+			statusLabel->SetText("Downloading data from Binance (this may take several minutes)...");
 			progressBar->Update(15.0, "Downloading historical data from Binance...");
 
 			// Download from Binance
@@ -702,7 +717,15 @@ void BacktestView::RunBacktest() {
 
 		LOG_INFO("Loaded " + std::to_string(candles.size()) + " candles");
 
+		// CRITICAL: Validate that we have enough data
+		if (candles.size() < 50) {
+			throw std::runtime_error("Not enough data for backtest. Loaded only " +
+			                          std::to_string(candles.size()) +
+			                          " candles. Need at least 50 candles for reliable results.");
+		}
+
 		progressBar->Update(30.0, "Calculating indicators...");
+		statusLabel->SetText("Running backtest simulation...");
 
 		// Run backtest
 		Backtest::BacktestSimulator simulator(recipe, config);

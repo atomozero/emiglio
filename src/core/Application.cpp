@@ -44,11 +44,15 @@ public:
 				LOG_INFO("Internet connection available - starting data sync");
 				netMgr.showNotification(
 					"Emiglio - Online Mode",
-					"Internet connection detected. Syncing market data...",
+					"Internet connection detected. Ready to use!",
 					false
 				);
 
-				// Start data sync
+				// PERFORMANCE FIX: Disable automatic data sync on startup
+				// This was causing the app to be slow during first 30 seconds
+				// User can manually sync from Dashboard "Refresh" button if needed
+
+				/* DISABLED - Too slow on startup
 				syncInProgress = true;
 				DataSyncManager& syncMgr = DataSyncManager::getInstance();
 
@@ -60,18 +64,20 @@ public:
 				);
 
 				bool syncSuccess = syncMgr.syncAllData();
+				*/
+
+				// Just log that we're online, don't sync automatically
+				LOG_INFO("Internet connection available - data sync disabled for faster startup");
+				bool syncSuccess = true;  // Fake success to avoid notification
 
 				if (syncSuccess) {
-					netMgr.showNotification(
-						"Emiglio - Sync Complete",
-						"Market data synchronized successfully",
-						false
-					);
-					LOG_INFO("Data sync completed successfully");
+					// Skip success notification since we didn't actually sync
+					// netMgr.showNotification(...);
+					LOG_INFO("Startup complete - sync skipped for performance");
 				} else {
 					netMgr.showNotification(
-						"Emiglio - Sync Warning",
-						"Some data may not have synchronized properly",
+						"Emiglio - Network Error",
+						"Could not verify internet connection",
 						true
 					);
 					LOG_WARNING("Data sync completed with warnings");

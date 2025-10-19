@@ -7,6 +7,7 @@
 #include <ListView.h>
 #include <string>
 #include <memory>
+#include "../data/DataStorage.h"
 
 class BScrollView;
 class BButton;
@@ -77,6 +78,9 @@ private:
 	// Binance API
 	std::unique_ptr<CredentialManager> credentialManager;
 	std::unique_ptr<BinanceAPI> binanceAPI;
+
+	// Database storage (shared instance)
+	DataStorage* dataStorage;
 
 	enum {
 		MSG_AUTO_REFRESH = 'arfr',

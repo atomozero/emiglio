@@ -6,6 +6,7 @@
 #include <Button.h>
 #include <TextControl.h>
 #include <MenuField.h>
+#include <MessageRunner.h>
 #include "../exchange/BinanceWebSocket.h"
 #include "../paper/PaperPortfolio.h"
 #include <memory>
@@ -40,6 +41,9 @@ private:
 
 	// WebSocket
 	std::unique_ptr<BinanceWebSocket> webSocket;
+
+	// WebSocket message processor (timer)
+	BMessageRunner* wsMessageProcessor;
 
 	// Paper Trading Portfolio
 	std::unique_ptr<Paper::PaperPortfolio> paperPortfolio;
@@ -87,7 +91,8 @@ private:
 		MSG_PLACE_ORDER = 'plco',
 		MSG_UPDATE_TICKER = 'utck',
 		MSG_UPDATE_TRADE = 'utrd',
-		MSG_SYMBOL_CHANGED = 'smch'
+		MSG_SYMBOL_CHANGED = 'smch',
+		MSG_PROCESS_WS_MESSAGES = 'pwsm'
 	};
 
 	// Helper to safely update UI from worker thread

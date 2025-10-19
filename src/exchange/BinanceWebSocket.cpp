@@ -36,6 +36,10 @@ public:
 	// Subscribed streams
 	std::vector<std::string> subscribedStreams;
 
+	// CRITICAL FIX: Message queue for thread-safe callback handling
+	std::mutex messageMutex;
+	std::queue<std::string> messageQueue;
+
 	Impl() : connected(false) {
 		// Setup WebSocket callbacks
 		wsClient.onConnect([this]() {
@@ -44,7 +48,10 @@ public:
 		});
 
 		wsClient.onMessage([this](const std::string& message) {
-			handleMessage(message);
+			// CRITICAL FIX: Queue messages instead of processing them directly
+			// This avoids calling UI callbacks from background thread
+			std::lock_guard<std::mutex> lock(messageMutex);
+			messageQueue.push(message);
 		});
 
 		wsClient.onError([this](const std::string& error) {
@@ -300,7 +307,18 @@ void BinanceWebSocket::setErrorCallback(ErrorCallback callback) {
 }
 
 void BinanceWebSocket::processMessages() {
-	// Not needed anymore - WebSocketClient handles messages in its own thread
+	// CRITICAL FIX: Process queued messages in main thread
+	// This function MUST be called periodically from the main thread (e.g., via BMessageRunner)
+	std::lock_guard<std::mutex> lock(pImpl->messageMutex);
+
+	// Process all queued messages
+	while (!pImpl->messageQueue.empty()) {
+		std::string message = pImpl->messageQueue.front();
+		pImpl->messageQueue.pop();
+
+		// Now it's safe to call handleMessage (we're in the main thread)
+		pImpl->handleMessage(message);
+	}
 }
 
 } // namespace Emiglio

@@ -29,6 +29,7 @@ DashboardView::DashboardView()
 	, autoRefreshRunner(nullptr)
 	, credentialManager(std::make_unique<CredentialManager>())
 	, binanceAPI(std::make_unique<BinanceAPI>())
+	, dataStorage(nullptr)
 {
 	SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
 
@@ -37,12 +38,24 @@ DashboardView::DashboardView()
 		LOG_ERROR("Failed to initialize CredentialManager in Dashboard");
 	}
 
+	// Initialize shared database storage
+	dataStorage = new DataStorage();
+	if (!dataStorage->init("/boot/home/Emiglio/data/emilio.db")) {
+		LOG_ERROR("Failed to initialize DataStorage in Dashboard");
+		delete dataStorage;
+		dataStorage = nullptr;
+	}
+
 	BuildLayout();
-	RefreshData();
+	// Don't auto-refresh on construction - wait for AttachedToWindow
 }
 
 DashboardView::~DashboardView() {
 	delete autoRefreshRunner;
+	if (dataStorage) {
+		delete dataStorage;
+		dataStorage = nullptr;
+	}
 }
 
 void DashboardView::AttachedToWindow() {
@@ -51,9 +64,14 @@ void DashboardView::AttachedToWindow() {
 	if (runBacktestButton) runBacktestButton->SetTarget(this);
 	if (refreshBinanceButton) refreshBinanceButton->SetTarget(this);
 
+	// DISABLED: Auto-refresh was blocking the UI with synchronous network calls
+	// TODO: Move to background thread if needed
 	// Start auto-refresh timer (every 5 seconds)
-	BMessage refreshMsg(MSG_AUTO_REFRESH);
-	autoRefreshRunner = new BMessageRunner(this, &refreshMsg, 5000000); // 5 seconds in microseconds
+	// BMessage refreshMsg(MSG_AUTO_REFRESH);
+	// autoRefreshRunner = new BMessageRunner(this, &refreshMsg, 5000000); // 5 seconds in microseconds
+
+	// Do initial refresh once
+	RefreshData();
 }
 
 void DashboardView::DetachedFromWindow() {
@@ -86,7 +104,7 @@ void DashboardView::BuildLayout() {
 	paperCard->SetLabel("Paper Trading Portfolio");
 
 	BView* paperBg = new BView("paper_bg", B_WILL_DRAW);
-	paperBg->SetViewColor(250, 248, 245); // Warm beige
+	paperBg->SetViewColor(242, 238, 230); // Softer warm beige
 
 	// Badge
 	BStringView* paperBadge = new BStringView("", "● SIMULATED");
@@ -113,20 +131,19 @@ void DashboardView::BuildLayout() {
 	totalPnLLabel->SetFont(&pnlFont);
 	totalPnLPercentLabel->SetFont(&pnlFont);
 
-	BLayoutBuilder::Group<>(paperBg, B_VERTICAL, 8)
-		.SetInsets(12)
+	BLayoutBuilder::Group<>(paperBg, B_VERTICAL, 6)
+		.SetInsets(10, 8, 10, 8)
 		.Add(paperBadge)
-		.AddStrut(4)
+		.AddStrut(2)
 		.Add(totalCapitalLabel)
 		.Add(availableCashLabel)
 		.Add(investedLabel)
-		.AddStrut(8)
+		.AddStrut(4)
 		.AddGroup(B_HORIZONTAL)
 			.Add(totalPnLLabel)
 			.AddGlue()
 			.Add(totalPnLPercentLabel)
 		.End()
-		.AddGlue()
 		.End();
 
 	BLayoutBuilder::Group<>(paperCard, B_VERTICAL, 0)
@@ -138,7 +155,7 @@ void DashboardView::BuildLayout() {
 	statsCard->SetLabel("System Status");
 
 	BView* statsBg = new BView("stats_bg", B_WILL_DRAW);
-	statsBg->SetViewColor(245, 248, 250); // Light blue-gray
+	statsBg->SetViewColor(235, 240, 245); // Softer blue-gray
 
 	recipesCountLabel = new BStringView("", "Strategies: 0");
 	backtestsCountLabel = new BStringView("", "Backtests: 0");
@@ -150,13 +167,13 @@ void DashboardView::BuildLayout() {
 	backtestsCountLabel->SetFont(&statsFont);
 	candlesCountLabel->SetFont(&statsFont);
 
-	BLayoutBuilder::Group<>(statsBg, B_VERTICAL, 8)
-		.SetInsets(12)
-		.AddStrut(16)
+	BLayoutBuilder::Group<>(statsBg, B_VERTICAL, 6)
+		.SetInsets(10, 8, 10, 8)
+		.AddStrut(4)
 		.Add(recipesCountLabel)
 		.Add(candlesCountLabel)
 		.Add(backtestsCountLabel)
-		.AddGlue()
+		.AddStrut(4)
 		.End();
 
 	BLayoutBuilder::Group<>(statsCard, B_VERTICAL, 0)
@@ -168,7 +185,7 @@ void DashboardView::BuildLayout() {
 	realCard->SetLabel("Live Portfolio Summary");
 
 	BView* realBg = new BView("real_bg", B_WILL_DRAW);
-	realBg->SetViewColor(245, 252, 245); // Very light green
+	realBg->SetViewColor(235, 245, 235); // Softer light green
 
 	// Badge
 	BStringView* realBadge = new BStringView("", "● LIVE TRADING");
@@ -191,15 +208,15 @@ void DashboardView::BuildLayout() {
 	realExchangeCountLabel->SetHighColor(80, 80, 80);
 	realLastUpdateLabel->SetHighColor(80, 80, 80);
 
-	BLayoutBuilder::Group<>(realBg, B_VERTICAL, 6)
-		.SetInsets(12)
+	BLayoutBuilder::Group<>(realBg, B_VERTICAL, 5)
+		.SetInsets(10, 8, 10, 8)
 		.Add(realBadge)
-		.AddStrut(8)
+		.AddStrut(4)
 		.Add(realTotalValueLabel)
-		.AddStrut(8)
+		.AddStrut(4)
 		.Add(realExchangeCountLabel)
 		.Add(realLastUpdateLabel)
-		.AddGlue()
+		.AddStrut(2)
 		.End();
 
 	BLayoutBuilder::Group<>(realCard, B_VERTICAL, 0)
@@ -211,7 +228,7 @@ void DashboardView::BuildLayout() {
 	binanceCard->SetLabel("Binance Exchange");
 
 	BView* binanceBg = new BView("binance_bg", B_WILL_DRAW);
-	binanceBg->SetViewColor(248, 252, 248); // Lighter green
+	binanceBg->SetViewColor(238, 245, 238); // Softer green
 
 	binanceStatusLabel = new BStringView("", "Status: Not connected");
 	binanceTotalValueLabel = new BStringView("", "");
@@ -231,21 +248,24 @@ void DashboardView::BuildLayout() {
 	binanceBalancesView->AddColumn(new BStringColumn("Total", 120, 80, 180, B_TRUNCATE_END), 1);
 	binanceBalancesView->AddColumn(new BStringColumn("Free", 120, 80, 180, B_TRUNCATE_END), 2);
 	binanceBalancesView->AddColumn(new BStringColumn("Locked", 120, 80, 180, B_TRUNCATE_END), 3);
+	binanceBalancesView->SetExplicitMinSize(BSize(B_SIZE_UNSET, 100));
+	binanceBalancesView->SetExplicitMaxSize(BSize(B_SIZE_UNSET, 140));
 
 	binanceBalancesScroll = new BScrollView("binance_scroll", binanceBalancesView,
 	                                        0, false, true);
 
 	refreshBinanceButton = new BButton("Refresh", new BMessage(MSG_REFRESH_BINANCE));
 
-	BLayoutBuilder::Group<>(binanceBg, B_VERTICAL, 6)
-		.SetInsets(10)
+	BLayoutBuilder::Group<>(binanceBg, B_VERTICAL, 5)
+		.SetInsets(8, 6, 8, 6)
 		.AddGroup(B_HORIZONTAL)
 			.Add(binanceStatusLabel)
 			.AddGlue()
 			.Add(binanceTotalValueLabel)
 		.End()
-		.AddStrut(6)
+		.AddStrut(4)
 		.Add(binanceBalancesScroll)
+		.AddStrut(2)
 		.AddGroup(B_HORIZONTAL)
 			.AddGlue()
 			.Add(refreshBinanceButton)
@@ -258,14 +278,16 @@ void DashboardView::BuildLayout() {
 
 	// ========== RECENT BACKTESTS ==========
 	recentBacktestsView = new BListView("recent_backtests");
+	recentBacktestsView->SetExplicitMinSize(BSize(B_SIZE_UNSET, 120));
+	recentBacktestsView->SetExplicitMaxSize(BSize(B_SIZE_UNSET, 180));
 	recentBacktestsScroll = new BScrollView("recent_scroll", recentBacktestsView,
 	                                        0, false, true);
 
 	BBox* backtestsCard = new BBox("backtests_card");
 	backtestsCard->SetLabel("Recent Backtest Results");
 
-	BLayoutBuilder::Group<>(backtestsCard, B_VERTICAL, 6)
-		.SetInsets(10)
+	BLayoutBuilder::Group<>(backtestsCard, B_VERTICAL, 4)
+		.SetInsets(8, 6, 8, 6)
 		.Add(recentBacktestsScroll)
 		.End();
 
@@ -273,25 +295,26 @@ void DashboardView::BuildLayout() {
 	runBacktestButton = new BButton("New Backtest", new BMessage(MSG_RUN_BACKTEST));
 
 	// ========== MAIN LAYOUT (2-COLUMN GRID) ==========
-	BLayoutBuilder::Group<>(this, B_VERTICAL, 10)
-		.SetInsets(B_USE_WINDOW_SPACING)
+	BLayoutBuilder::Group<>(this, B_VERTICAL, 8)
+		.SetInsets(10, 8, 10, 8)
 		// Header
 		.Add(titleView)
 		.Add(subtitleView)
-		.AddStrut(10)
+		.AddStrut(6)
 		// Top Row: Paper Portfolio + Stats
-		.AddGroup(B_HORIZONTAL, 10)
+		.AddGroup(B_HORIZONTAL, 8)
 			.Add(paperCard, 2)
 			.Add(statsCard, 1)
 		.End()
 		// Middle Row: Real Summary + Binance Details
-		.AddGroup(B_HORIZONTAL, 10)
+		.AddGroup(B_HORIZONTAL, 8)
 			.Add(realCard, 1)
 			.Add(binanceCard, 2)
 		.End()
 		// Bottom: Recent Backtests
-		.Add(backtestsCard, 1.5)
+		.Add(backtestsCard, 1.0)
 		// Actions
+		.AddStrut(4)
 		.AddGroup(B_HORIZONTAL)
 			.Add(runBacktestButton)
 			.AddGlue()
@@ -311,7 +334,9 @@ void DashboardView::MessageReceived(BMessage* message) {
 			break;
 
 		case MSG_REFRESH_BINANCE:
+			// Load both Binance portfolio and real portfolio summary
 			LoadBinancePortfolio();
+			LoadRealPortfolioSummary();
 			break;
 
 		default:
@@ -322,9 +347,10 @@ void DashboardView::MessageReceived(BMessage* message) {
 
 void DashboardView::RefreshData() {
 	LoadPortfolioStats();
-	LoadRealPortfolioSummary();
-	LoadBinancePortfolio();
 	LoadRecentBacktests();
+	// REMOVED: LoadBinancePortfolio() and LoadRealPortfolioSummary()
+	// These make blocking network calls and freeze the UI
+	// User must click "Refresh" button manually to load Binance data
 }
 
 void DashboardView::LoadPortfolioStats() {
@@ -393,19 +419,25 @@ void DashboardView::LoadPortfolioStats() {
 	oss << "Strategies: " << recipeCount;
 	recipesCountLabel->SetText(oss.str().c_str());
 
-	// Count candles in database
-	DataStorage storage;
+	// Count candles in database (using shared instance)
 	int candleCount = 0;
-	if (storage.init("/boot/home/Emiglio/data/emilio.db")) {
-		candleCount = storage.getCandleCount("binance", "", "");
+	if (dataStorage) {
+		candleCount = dataStorage->getCandleCount("binance", "", "");
 	}
 
 	oss.str("");
 	oss << "Data Points: " << candleCount;
 	candlesCountLabel->SetText(oss.str().c_str());
 
+	// Count backtest results (using shared instance)
+	int backtestCount = 0;
+	if (dataStorage) {
+		std::vector<BacktestResult> backtestResults = dataStorage->getAllBacktestResults();
+		backtestCount = backtestResults.size();
+	}
+
 	oss.str("");
-	oss << "Backtests: 0";
+	oss << "Backtest Results: " << backtestCount;
 	backtestsCountLabel->SetText(oss.str().c_str());
 
 	LOG_INFO("Dashboard stats refreshed");
@@ -414,21 +446,25 @@ void DashboardView::LoadPortfolioStats() {
 void DashboardView::LoadRecentBacktests() {
 	recentBacktestsView->MakeEmpty();
 
-	// Query database for recent backtest results
-	DataStorage storage;
-	if (!storage.init("/boot/home/Emiglio/data/emilio.db")) {
+	// Query database for recent backtest results (using shared instance)
+	if (!dataStorage) {
 		recentBacktestsView->AddItem(new BStringItem("Failed to load backtest results"));
-		LOG_WARNING("Failed to initialize database");
+		LOG_WARNING("DataStorage not initialized");
 		return;
 	}
 
-	std::vector<BacktestResult> results = storage.getAllBacktestResults();
+	std::vector<BacktestResult> results = dataStorage->getAllBacktestResults();
 
 	if (results.empty()) {
-		recentBacktestsView->AddItem(new BStringItem("No backtest results yet"));
+		BStringItem* header = new BStringItem("No backtest results available");
+		BFont headerFont(be_bold_font);
+		headerFont.SetSize(11);
+		recentBacktestsView->AddItem(header);
 		recentBacktestsView->AddItem(new BStringItem(""));
-		recentBacktestsView->AddItem(new BStringItem("Run backtests from the Backtest tab"));
-		recentBacktestsView->AddItem(new BStringItem("and results will appear here."));
+		recentBacktestsView->AddItem(new BStringItem("→ Click 'New Backtest' below to run your first backtest"));
+		recentBacktestsView->AddItem(new BStringItem("→ Or go to the 'Backtest' tab to configure parameters"));
+		recentBacktestsView->AddItem(new BStringItem(""));
+		recentBacktestsView->AddItem(new BStringItem("Results will appear here once you run backtests."));
 		LOG_INFO("No backtest results in database");
 		return;
 	}

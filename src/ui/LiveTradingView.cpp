@@ -98,6 +98,7 @@ public:
 LiveTradingView::LiveTradingView()
 	: BView("Live Trading", B_WILL_DRAW)
 	, webSocket(nullptr)
+	, wsMessageProcessor(nullptr)
 	, paperPortfolio(std::make_unique<Paper::PaperPortfolio>(10000.0))
 	, currentSymbol("BTC" + Config::getInstance().getPreferredQuote())
 	, isConnected(false)
@@ -110,6 +111,7 @@ LiveTradingView::LiveTradingView()
 
 LiveTradingView::~LiveTradingView() {
 	DisconnectWebSocket();
+	delete wsMessageProcessor;
 }
 
 void LiveTradingView::AttachedToWindow() {
@@ -402,6 +404,13 @@ void LiveTradingView::MessageReceived(BMessage* message) {
 			break;
 		}
 
+		case MSG_PROCESS_WS_MESSAGES:
+			// CRITICAL FIX: Process queued WebSocket messages in main thread
+			if (webSocket) {
+				webSocket->processMessages();
+			}
+			break;
+
 		case MSG_UPDATE_TICKER:
 		{
 			// Extract ticker data from message
@@ -473,6 +482,12 @@ void LiveTradingView::ConnectWebSocket() {
 	connectionStatusLabel->SetText("Status: Connected");
 	connectButton->SetLabel("Disconnect");
 
+	// CRITICAL FIX: Start message processor timer
+	// This periodically calls webSocket->processMessages() from the main thread
+	// to safely process queued messages and fire UI callbacks
+	BMessage processMsg(MSG_PROCESS_WS_MESSAGES);
+	wsMessageProcessor = new BMessageRunner(this, &processMsg, 100000); // 100ms = 0.1 seconds
+
 	LOG_INFO("WebSocket connected successfully");
 }
 
@@ -480,6 +495,10 @@ void LiveTradingView::DisconnectWebSocket() {
 	if (!webSocket) return;
 
 	LOG_INFO("Disconnecting WebSocket...");
+
+	// Stop message processor
+	delete wsMessageProcessor;
+	wsMessageProcessor = nullptr;
 
 	webSocket->disconnect();
 	webSocket.reset();

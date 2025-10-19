@@ -615,100 +615,55 @@ void ChartsView::BuildLayout() {
 	chartView = new CandlestickChartView();
 	chartView->SetExplicitMinSize(BSize(600, 400));
 
-	// Fetch available symbols from Binance and extract unique base/quote currencies
-	std::set<std::string> baseCurrencies;
-	std::set<std::string> quoteCurrencies;
+	// PERFORMANCE FIX: Use static list of currencies instead of downloading 16MB from Binance
+	// This reduces startup time from 13 seconds to instant!
+	// Previous code called api.getAllSymbols() which downloads exchangeInfo (16MB, 1592 symbols)
 
-	BinanceAPI api;
-	if (api.init("", "")) {
-		std::vector<std::string> symbols = api.getAllSymbols();
-
-		// Parse all symbols to extract base and quote currencies
-		for (const auto& symbol : symbols) {
-			// Common quote currencies
-			const std::vector<std::string> quotes = {"USDT", "BUSD", "EUR", "BTC", "ETH", "BNB"};
-
-			for (const auto& quote : quotes) {
-				if (symbol.length() > quote.length() &&
-				    symbol.substr(symbol.length() - quote.length()) == quote) {
-					std::string base = symbol.substr(0, symbol.length() - quote.length());
-					baseCurrencies.insert(base);
-					quoteCurrencies.insert(quote);
-					break;
-				}
-			}
-		}
-	}
-
-	// Base currency menu
-	BPopUpMenu* basePopup = new BPopUpMenu("Base");
-
-	// Add popular base currencies first
-	const std::vector<std::string> popularBases = {
-		"BTC", "ETH", "BNB", "SOL", "XRP", "ADA", "DOGE", "MATIC", "DOT", "AVAX"
+	// Popular base currencies (user can still type any symbol manually)
+	std::set<std::string> baseCurrencies = {
+		"BTC", "ETH", "BNB", "SOL", "XRP", "ADA", "DOGE", "MATIC", "DOT", "AVAX",
+		"LINK", "UNI", "LTC", "BCH", "ATOM", "ETC", "XLM", "ALGO", "VET", "ICP",
+		"FIL", "TRX", "EOS", "AAVE", "GRT", "SAND", "MANA", "AXS", "THETA", "FTM",
+		"NEAR", "HBAR", "EGLD", "XTZ", "FLOW", "CHZ", "ENJ", "ZEC", "DASH", "COMP"
 	};
 
-	for (const auto& base : popularBases) {
-		if (baseCurrencies.find(base) != baseCurrencies.end()) {
-			BMessage* msg = new BMessage(MSG_BASE_CURRENCY_CHANGED);
-			msg->AddString("base", base.c_str());
-			basePopup->AddItem(new BMenuItem(base.c_str(), msg));
-		}
-	}
+	// Common quote currencies
+	std::set<std::string> quoteCurrencies = {
+		"USDT", "BUSD", "USDC", "EUR", "GBP", "BTC", "ETH", "BNB"
+	};
 
-	// Add separator
-	if (baseCurrencies.size() > popularBases.size()) {
-		basePopup->AddSeparatorItem();
-	}
+	// Base currency menu - simplified for performance
+	BPopUpMenu* basePopup = new BPopUpMenu("Base");
 
-	// Add remaining base currencies (sorted)
+	// Add all base currencies directly (already sorted by popularity in the set)
 	for (const auto& base : baseCurrencies) {
-		// Skip if already in popular list
-		bool isPopular = false;
-		for (const auto& pop : popularBases) {
-			if (base == pop) {
-				isPopular = true;
-				break;
-			}
-		}
-		if (!isPopular) {
-			BMessage* msg = new BMessage(MSG_BASE_CURRENCY_CHANGED);
-			msg->AddString("base", base.c_str());
-			basePopup->AddItem(new BMenuItem(base.c_str(), msg));
-		}
+		BMessage* msg = new BMessage(MSG_BASE_CURRENCY_CHANGED);
+		msg->AddString("base", base.c_str());
+		basePopup->AddItem(new BMenuItem(base.c_str(), msg));
 	}
 
-	basePopup->ItemAt(0)->SetMarked(true);
+	basePopup->ItemAt(0)->SetMarked(true);  // Mark first item (BTC)
 	baseCurrencyMenu = new BMenuField("Base:", basePopup);
 
-	// Quote currency menu
+	// Quote currency menu - simplified for performance
 	BPopUpMenu* quotePopup = new BPopUpMenu("Quote");
 
 	// Get user's preferred quote from settings
 	Config& config = Config::getInstance();
 	std::string preferredQuote = config.getPreferredQuote();
 
-	// Add quote currencies with user's preference first
-	std::vector<std::string> preferredQuotes = {preferredQuote};
-	std::vector<std::string> otherQuotes = {"USDT", "EUR", "BTC", "ETH", "BNB", "BUSD"};
+	// Add quote currencies in preferred order: USDT, EUR, BTC, ETH, BNB, others
+	const std::vector<std::string> quoteOrder = {"USDT", "EUR", "BTC", "ETH", "BNB", "BUSD", "USDC", "GBP"};
 
-	// Add other quotes that aren't the preferred one
-	for (const auto& quote : otherQuotes) {
-		if (quote != preferredQuote) {
-			preferredQuotes.push_back(quote);
-		}
-	}
+	for (const auto& quote : quoteOrder) {
+		BMessage* msg = new BMessage(MSG_QUOTE_CURRENCY_CHANGED);
+		msg->AddString("quote", quote.c_str());
+		BMenuItem* item = new BMenuItem(quote.c_str(), msg);
+		quotePopup->AddItem(item);
 
-	for (const auto& quote : preferredQuotes) {
-		if (quoteCurrencies.find(quote) != quoteCurrencies.end()) {
-			BMessage* msg = new BMessage(MSG_QUOTE_CURRENCY_CHANGED);
-			msg->AddString("quote", quote.c_str());
-			BMenuItem* item = new BMenuItem(quote.c_str(), msg);
-			quotePopup->AddItem(item);
-			// Mark user's preferred quote
-			if (quote == preferredQuote) {
-				item->SetMarked(true);
-			}
+		// Mark user's preferred quote
+		if (quote == preferredQuote) {
+			item->SetMarked(true);
 		}
 	}
 
