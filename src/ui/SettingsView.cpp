@@ -1,4 +1,5 @@
 #include "SettingsView.h"
+#include "DashboardView.h"
 #include "../utils/Logger.h"
 #include "../utils/Config.h"
 #include "../exchange/BinanceAPI.h"
@@ -503,6 +504,10 @@ void SettingsView::SavePreferences() {
 	if (config.setCurrency(selectedCurrency)) {
 		if (config.save()) {
 			UpdatePreferencesStatus("Preferences saved successfully", false);
+
+			// Notify Dashboard and other views about settings change
+			BMessage settingsMsg(UI::DashboardView::MSG_SETTINGS_CHANGED);
+			Window()->PostMessage(&settingsMsg);
 
 			BAlert* alert = new BAlert("Success",
 				("Currency preference saved: " + selectedCurrency + "\n\n"

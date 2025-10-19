@@ -34,6 +34,11 @@ public:
 	// Public method to refresh dashboard data
 	void RefreshData();
 
+	// Public message constants (for other views to send messages)
+	enum {
+		MSG_SETTINGS_CHANGED = 'stch'
+	};
+
 private:
 	void BuildLayout();
 	void LoadRecentBacktests();
@@ -82,11 +87,11 @@ private:
 	// Database storage (shared instance)
 	DataStorage* dataStorage;
 
+	// Private message constants (for internal use)
 	enum {
 		MSG_AUTO_REFRESH = 'arfr',
 		MSG_RUN_BACKTEST = 'rbkt',
-		MSG_REFRESH_BINANCE = 'rfbn',
-		MSG_SETTINGS_CHANGED = 'stch'
+		MSG_REFRESH_BINANCE = 'rfbn'
 	};
 };
 
