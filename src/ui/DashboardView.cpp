@@ -133,6 +133,13 @@ void DashboardView::BuildLayout() {
 	totalPnLLabel->SetFont(&bigValueFont);
 	totalPnLPercentLabel->SetFont(&valueFont);
 
+	winRateLabel = new BStringView("", "Win Rate: Loading...");
+	maxDrawdownLabel = new BStringView("", "Max Drawdown: Loading...");
+	openPositionsLabel = new BStringView("", "Open Positions: Loading...");
+	winRateLabel->SetFont(&valueFont);
+	maxDrawdownLabel->SetFont(&valueFont);
+	openPositionsLabel->SetFont(&valueFont);
+
 	BLayoutBuilder::Group<>(simulatedBox, B_VERTICAL, 4)
 		.SetInsets(B_USE_DEFAULT_SPACING)
 		.Add(simModeLabel)
@@ -143,6 +150,10 @@ void DashboardView::BuildLayout() {
 		.AddStrut(4)
 		.Add(totalPnLLabel)
 		.Add(totalPnLPercentLabel)
+		.AddStrut(4)
+		.Add(winRateLabel)
+		.Add(maxDrawdownLabel)
+		.Add(openPositionsLabel)
 		.AddGlue()
 		.End();
 
@@ -375,6 +386,23 @@ void DashboardView::LoadPortfolioStats() {
 	oss.str("");
 	oss << "Total P&L %: " << std::fixed << std::setprecision(2) << pnlPercent << "%";
 	totalPnLPercentLabel->SetText(oss.str().c_str());
+
+	// Additional performance metrics (placeholder values - would be calculated from actual trades)
+	double winRate = 0.0; // Percentage of winning trades
+	double maxDrawdown = 0.0; // Maximum percentage drop from peak
+	int openPositions = 0; // Currently open positions
+
+	oss.str("");
+	oss << "Win Rate: " << std::fixed << std::setprecision(1) << winRate << "%";
+	winRateLabel->SetText(oss.str().c_str());
+
+	oss.str("");
+	oss << "Max Drawdown: " << std::fixed << std::setprecision(2) << maxDrawdown << "%";
+	maxDrawdownLabel->SetText(oss.str().c_str());
+
+	oss.str("");
+	oss << "Open Positions: " << openPositions;
+	openPositionsLabel->SetText(oss.str().c_str());
 
 	// System stats
 	// Count recipes

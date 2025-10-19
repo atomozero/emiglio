@@ -52,6 +52,9 @@ private:
 	BStringView* investedLabel;
 	BStringView* totalPnLLabel;
 	BStringView* totalPnLPercentLabel;
+	BStringView* winRateLabel;
+	BStringView* maxDrawdownLabel;
+	BStringView* openPositionsLabel;
 
 	// Real Portfolio Summary (aggregated across all exchanges)
 	BStringView* realTotalValueLabel;
