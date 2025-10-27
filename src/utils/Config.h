@@ -96,6 +96,18 @@ public:
 		return "$";
 	}
 
+	// Get exchange rate from USD to selected currency (for display only)
+	// NOTE: Uses real-time rates from ExchangeRateService (updated from API)
+	double getExchangeRate() const;
+
+	// Convert USD amount to selected currency (for display only)
+	double convertFromUSD(double usdAmount) const {
+		return usdAmount * getExchangeRate();
+	}
+
+	// Force refresh exchange rates from API
+	bool refreshExchangeRates();
+
 	// Save to default location
 	bool save() { return save(getConfigDir() + "/config.json"); }
 
@@ -107,15 +119,15 @@ private:
 	Config();
 	~Config();
 
-	void initDefaultPaths();
-	std::vector<std::string> splitKey(const std::string& key) const;
+	void _InitDefaultPaths();
+	std::vector<std::string> _SplitKey(const std::string& key) const;
 
-	std::map<std::string, std::string> configMap;
-	std::string configDir;
-	std::string dataDir;
-	std::string recipesDir;
-	std::string logFile;
-	bool loaded;
+	std::map<std::string, std::string> fConfigMap;
+	std::string fConfigDir;
+	std::string fDataDir;
+	std::string fRecipesDir;
+	std::string fLogFile;
+	bool fLoaded;
 };
 
 } // namespace Emiglio

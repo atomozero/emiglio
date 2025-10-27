@@ -40,66 +40,66 @@ public:
 	};
 
 private:
-	void BuildLayout();
-	void LoadRecentBacktests();
-	void LoadPortfolioStats();
-	void LoadRealPortfolio();
-	void LoadRealPortfolioSummary();
-	void LoadBinancePortfolio();
+	void _BuildLayout();
+	void _LoadRecentBacktests();
+	void _LoadPortfolioStats();
+	void _LoadRealPortfolio();
+	void _LoadRealPortfolioSummary();
+	void _LoadBinancePortfolio();
 
 	// Portfolio stats (paper trading/backtest) - SIMULATED
-	BStringView* totalCapitalLabel;
-	BStringView* availableCashLabel;
-	BStringView* investedLabel;
-	BStringView* totalPnLLabel;
-	BStringView* totalPnLPercentLabel;
-	BStringView* winRateLabel;
-	BStringView* maxDrawdownLabel;
-	BStringView* openPositionsLabel;
+	BStringView* fTotalCapitalLabel;
+	BStringView* fAvailableCashLabel;
+	BStringView* fInvestedLabel;
+	BStringView* fTotalPnLLabel;
+	BStringView* fTotalPnLPercentLabel;
+	BStringView* fWinRateLabel;
+	BStringView* fMaxDrawdownLabel;
+	BStringView* fOpenPositionsLabel;
 
 	// Real Portfolio stats (from actual exchange accounts)
-	BStringView* realCapitalLabel;
-	BStringView* realCashLabel;
-	BStringView* realInvestedLabel;
-	BStringView* realPnLLabel;
-	BStringView* realPnLPercentLabel;
+	BStringView* fRealCapitalLabel;
+	BStringView* fRealCashLabel;
+	BStringView* fRealInvestedLabel;
+	BStringView* fRealPnLLabel;
+	BStringView* fRealPnLPercentLabel;
 
 	// Real Portfolio Summary (aggregated across all exchanges)
-	BStringView* realTotalValueLabel;
-	BStringView* realExchangeCountLabel;
-	BStringView* realLastUpdateLabel;
+	BStringView* fRealTotalValueLabel;
+	BStringView* fRealExchangeCountLabel;
+	BStringView* fRealLastUpdateLabel;
 
 	// Binance portfolio (detailed)
-	BStringView* binanceStatusLabel;
-	BStringView* binanceTotalValueLabel;
-	BColumnListView* binanceBalancesView;
-	BScrollView* binanceBalancesScroll;
-	BButton* refreshBinanceButton;
+	BStringView* fBinanceStatusLabel;
+	BStringView* fBinanceTotalValueLabel;
+	BColumnListView* fBinanceBalancesView;
+	BScrollView* fBinanceBalancesScroll;
+	BButton* fRefreshBinanceButton;
 
 	// System stats
-	BStringView* recipesCountLabel;
-	BStringView* backtestsCountLabel;
-	BStringView* candlesCountLabel;
-	BStringView* appVersionLabel;
+	BStringView* fRecipesCountLabel;
+	BStringView* fBacktestsCountLabel;
+	BStringView* fCandlesCountLabel;
+	BStringView* fAppVersionLabel;
 
 	// Recent backtests tables (split by type)
-	BColumnListView* simulatedBacktestsView;
-	BScrollView* simulatedBacktestsScroll;
-	BColumnListView* realBacktestsView;
-	BScrollView* realBacktestsScroll;
+	BColumnListView* fSimulatedBacktestsView;
+	BScrollView* fSimulatedBacktestsScroll;
+	BColumnListView* fRealBacktestsView;
+	BScrollView* fRealBacktestsScroll;
 
 	// Buttons
-	BButton* runBacktestButton;
+	BButton* fRunBacktestButton;
 
 	// Auto-refresh
-	BMessageRunner* autoRefreshRunner;
+	BMessageRunner* fAutoRefreshRunner;
 
 	// Binance API
-	std::unique_ptr<CredentialManager> credentialManager;
-	std::unique_ptr<BinanceAPI> binanceAPI;
+	std::unique_ptr<CredentialManager> fCredentialManager;
+	std::unique_ptr<BinanceAPI> fBinanceAPI;
 
 	// Database storage (shared instance)
-	DataStorage* dataStorage;
+	std::unique_ptr<DataStorage> fDataStorage;
 
 	// Private message constants (for internal use)
 	enum {

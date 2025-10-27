@@ -10,8 +10,7 @@
 #include <mutex>   // For thread safety
 #include <openssl/hmac.h>
 #include <openssl/sha.h>
-#include <cstdio>  // For popen/pclose
-#include <array>   // For std::array
+#include <curl/curl.h>  // For libcurl C API
 #ifdef __HAIKU__
 #include <OS.h>  // For snooze()
 #endif
@@ -75,7 +74,13 @@ public:
 	         cacheDurationSeconds(1) {  // Cache for 1 second by default
 	}
 
-	// HTTP request helper (public endpoints) using curl
+	// CURL write callback
+	static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+		((std::string*)userp)->append((char*)contents, size * nmemb);
+		return size * nmemb;
+	}
+
+	// HTTP request helper (public endpoints) using libcurl C API
 	std::string httpGet(const std::string& endpoint, const std::map<std::string, std::string>& params = {}) {
 		// Rate limiting check
 		if (!rateLimiter.canMakeRequest()) {
@@ -95,7 +100,16 @@ public:
 			bool first = true;
 			for (const auto& [key, value] : params) {
 				if (!first) url += "&";
-				url += key + "=" + value;
+				// URL encode the value
+				CURL* curl_handle = curl_easy_init();
+				if (curl_handle) {
+					char* encoded = curl_easy_escape(curl_handle, value.c_str(), value.length());
+					if (encoded) {
+						url += key + "=" + std::string(encoded);
+						curl_free(encoded);
+					}
+					curl_easy_cleanup(curl_handle);
+				}
 				first = false;
 			}
 		}
@@ -105,24 +119,35 @@ public:
 		// Record request for rate limiting
 		rateLimiter.recordRequest();
 
-		// Use curl via popen
-		std::string curlCmd = "curl -s \"" + url + "\"";
-		FILE* pipe = popen(curlCmd.c_str(), "r");
-		if (!pipe) {
-			LOG_ERROR("Failed to execute curl");
+		// Use libcurl C API
+		CURL* curl = curl_easy_init();
+		if (!curl) {
+			LOG_ERROR("Failed to initialize CURL");
 			return "";
 		}
 
-		// Read response
 		std::string response;
-		std::array<char, 4096> buffer;
-		while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
-			response += buffer.data();
+		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+		curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
+		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+
+		CURLcode res = curl_easy_perform(curl);
+		long http_code = 0;
+		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+		curl_easy_cleanup(curl);
+
+		if (res != CURLE_OK) {
+			LOG_ERROR("CURL error: " + std::string(curl_easy_strerror(res)));
+			return "";
 		}
 
-		int status = pclose(pipe);
-		if (status != 0) {
-			LOG_WARNING("curl returned non-zero status: " + std::to_string(status));
+		if (http_code != 200) {
+			LOG_WARNING("HTTP error " + std::to_string(http_code));
+			return "";
 		}
 
 		LOG_INFO("Response received: " + std::to_string(response.length()) + " bytes");
@@ -167,24 +192,42 @@ public:
 		// Record request for rate limiting
 		rateLimiter.recordRequest();
 
-		// Use curl via popen with API key header
-		std::string curlCmd = "curl -s -H \"X-MBX-APIKEY: " + apiKey + "\" \"" + url + "\"";
-		FILE* pipe = popen(curlCmd.c_str(), "r");
-		if (!pipe) {
-			LOG_ERROR("Failed to execute curl for signed request");
+		// Use libcurl C API with API key header
+		CURL* curl = curl_easy_init();
+		if (!curl) {
+			LOG_ERROR("Failed to initialize CURL for signed request");
 			return "";
 		}
 
-		// Read response
 		std::string response;
-		std::array<char, 4096> buffer;
-		while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
-			response += buffer.data();
+		struct curl_slist* headers = nullptr;
+		std::string apiKeyHeader = "X-MBX-APIKEY: " + apiKey;
+		headers = curl_slist_append(headers, apiKeyHeader.c_str());
+
+		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+		curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
+		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+
+		CURLcode res = curl_easy_perform(curl);
+		long http_code = 0;
+		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+
+		curl_slist_free_all(headers);
+		curl_easy_cleanup(curl);
+
+		if (res != CURLE_OK) {
+			LOG_ERROR("CURL error (signed): " + std::string(curl_easy_strerror(res)));
+			return "";
 		}
 
-		int status = pclose(pipe);
-		if (status != 0) {
-			LOG_WARNING("curl returned non-zero status: " + std::to_string(status));
+		if (http_code != 200) {
+			LOG_WARNING("HTTP error " + std::to_string(http_code) + ": " + response.substr(0, 200));
+			return "";
 		}
 
 		LOG_INFO("Signed response received: " + std::to_string(response.length()) + " bytes");

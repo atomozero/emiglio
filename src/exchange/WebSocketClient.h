@@ -40,7 +40,7 @@ public:
 
 private:
     struct Impl;
-    Impl* pImpl;
+    std::unique_ptr<Impl> pImpl;
 
     // Disable copy
     WebSocketClient(const WebSocketClient&) = delete;

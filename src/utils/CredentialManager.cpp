@@ -41,23 +41,32 @@ public:
 			return true;
 		}
 
-		// In a production system, this would use:
-		// - Hardware UUID/serial number
-		// - TPM (Trusted Platform Module) if available
-		// - User password hash
-		// For now, we'll use a combination of database path and a fixed salt
-		// This provides basic obfuscation, not military-grade security
+		// ⚠️ SECURITY WARNING: This encryption is WEAK and provides only basic obfuscation!
+		// In a production system, this MUST use:
+		// - User-provided password (via keyring/secure input)
+		// - Hardware UUID/serial number (TPM if available)
+		// - OS keychain/credential manager integration
+		//
+		// Current implementation uses predictable hostname - anyone with physical access
+		// can decrypt API keys! This is acceptable ONLY for educational/testing purposes.
+		//
+		// TODO: Integrate with system keyring or require user password
+
+		LOG_WARNING("Using weak encryption for credentials - NOT secure for production use!");
 
 		const char* salt = "Emiglio-Trading-Bot-v1.0-Salt-2025";
 		std::string keyMaterial = salt;
 
-		// Add some system-specific data (hostname would be better but not portable)
+		// Add hostname (predictable but better than nothing)
 		char hostname[256];
 		if (gethostname(hostname, sizeof(hostname)) == 0) {
 			keyMaterial += hostname;
 		}
 
-		// Derive key using SHA-256
+		// Add user ID for some additional entropy
+		keyMaterial += std::to_string(getuid());
+
+		// Derive key using SHA-256 (minimum 256-bit key for AES-256)
 		SHA256(reinterpret_cast<const unsigned char*>(keyMaterial.c_str()),
 		       keyMaterial.length(),
 		       encryptionKey);

@@ -1,15 +1,16 @@
 #include "Config.h"
 #include "Logger.h"
 #include "JsonParser.h"
+#include "ExchangeRateService.h"
 #include <fstream>
 #include <sstream>
-#include <cstdlib>
+#include <filesystem>
 
 namespace Emiglio {
 
 Config::Config()
-	: loaded(false) {
-	initDefaultPaths();
+	: fLoaded(false) {
+	_InitDefaultPaths();
 }
 
 Config::~Config() {
@@ -20,25 +21,25 @@ Config& Config::getInstance() {
 	return instance;
 }
 
-void Config::initDefaultPaths() {
+void Config::_InitDefaultPaths() {
 	// Get home directory
 	const char* home = std::getenv("HOME");
 	if (!home) {
 		home = "/boot/home";
 	}
 
-	configDir = std::string(home) + "/config/settings/Emiglio";
-	dataDir = std::string(home) + "/config/settings/Emiglio/data";
-	recipesDir = std::string(home) + "/config/settings/Emiglio/recipes";
-	logFile = configDir + "/emilio.log";
+	fConfigDir = std::string(home) + "/config/settings/Emiglio";
+	fDataDir = std::string(home) + "/config/settings/Emiglio/data";
+	fRecipesDir = std::string(home) + "/config/settings/Emiglio/recipes";
+	fLogFile = fConfigDir + "/emilio.log";
 
 	// Set default values
-	configMap["app.name"] = "Emiglio";
-	configMap["app.version"] = "1.0.0";
-	configMap["log.level"] = "INFO";
-	configMap["log.file"] = logFile;
-	configMap["data.dir"] = dataDir;
-	configMap["recipes.dir"] = recipesDir;
+	fConfigMap["app.name"] = "Emiglio";
+	fConfigMap["app.version"] = "1.0.0";
+	fConfigMap["log.level"] = "INFO";
+	fConfigMap["log.file"] = fLogFile;
+	fConfigMap["data.dir"] = fDataDir;
+	fConfigMap["recipes.dir"] = fRecipesDir;
 }
 
 bool Config::load(const std::string& configPath) {
@@ -54,34 +55,37 @@ bool Config::load(const std::string& configPath) {
 			// Read known configuration keys from JSON
 			// Load app settings
 			if (parser.has("app.name")) {
-				configMap["app.name"] = parser.getString("app.name");
+				fConfigMap["app.name"] = parser.getString("app.name");
 			}
 			if (parser.has("app.version")) {
-				configMap["app.version"] = parser.getString("app.version");
+				fConfigMap["app.version"] = parser.getString("app.version");
 			}
 
 			// Load log settings
 			if (parser.has("log.level")) {
-				configMap["log.level"] = parser.getString("log.level");
+				fConfigMap["log.level"] = parser.getString("log.level");
 			}
 			if (parser.has("log.file")) {
-				configMap["log.file"] = parser.getString("log.file");
+				fConfigMap["log.file"] = parser.getString("log.file");
 			}
 
 			// Load directory paths
 			if (parser.has("data.dir")) {
-				configMap["data.dir"] = parser.getString("data.dir");
+				fConfigMap["data.dir"] = parser.getString("data.dir");
 			}
 			if (parser.has("recipes.dir")) {
-				configMap["recipes.dir"] = parser.getString("recipes.dir");
+				fConfigMap["recipes.dir"] = parser.getString("recipes.dir");
 			}
 
 			// Load display settings (IMPORTANT: currency preference)
 			if (parser.has("display.currency")) {
-				configMap["display.currency"] = parser.getString("display.currency");
+				fConfigMap["display.currency"] = parser.getString("display.currency");
+				LOG_INFO("Config::load() - Loaded currency: " + fConfigMap["display.currency"]);
+			} else {
+				LOG_WARNING("Config::load() - No display.currency found in config file!");
 			}
 
-			loaded = true;
+			fLoaded = true;
 			LOG_INFO("Configuration loaded from: " + configPath);
 			return true;
 		}
@@ -98,9 +102,12 @@ bool Config::save(const std::string& configPath) {
 	size_t lastSlash = configPath.find_last_of('/');
 	if (lastSlash != std::string::npos) {
 		std::string dir = configPath.substr(0, lastSlash);
-		// Create directory recursively
-		std::string cmd = "mkdir -p \"" + dir + "\"";
-		system(cmd.c_str());
+		// Create directory recursively using C++17 filesystem
+		std::error_code ec;
+		if (!std::filesystem::create_directories(dir, ec) && ec) {
+			LOG_ERROR("Failed to create config directory: " + dir + " - " + ec.message());
+			return false;
+		}
 	}
 
 	std::ofstream file(configPath);
@@ -114,7 +121,7 @@ bool Config::save(const std::string& configPath) {
 
 	// Write all config values
 	bool first = true;
-	for (const auto& pair : configMap) {
+	for (const auto& pair : fConfigMap) {
 		if (!first) {
 			file << ",\n";
 		}
@@ -140,16 +147,16 @@ bool Config::save(const std::string& configPath) {
 }
 
 std::string Config::getString(const std::string& key, const std::string& defaultValue) const {
-	auto it = configMap.find(key);
-	if (it != configMap.end()) {
+	auto it = fConfigMap.find(key);
+	if (it != fConfigMap.end()) {
 		return it->second;
 	}
 	return defaultValue;
 }
 
 int Config::getInt(const std::string& key, int defaultValue) const {
-	auto it = configMap.find(key);
-	if (it != configMap.end()) {
+	auto it = fConfigMap.find(key);
+	if (it != fConfigMap.end()) {
 		try {
 			return std::stoi(it->second);
 		} catch (...) {
@@ -160,8 +167,8 @@ int Config::getInt(const std::string& key, int defaultValue) const {
 }
 
 double Config::getDouble(const std::string& key, double defaultValue) const {
-	auto it = configMap.find(key);
-	if (it != configMap.end()) {
+	auto it = fConfigMap.find(key);
+	if (it != fConfigMap.end()) {
 		try {
 			return std::stod(it->second);
 		} catch (...) {
@@ -172,8 +179,8 @@ double Config::getDouble(const std::string& key, double defaultValue) const {
 }
 
 bool Config::getBool(const std::string& key, bool defaultValue) const {
-	auto it = configMap.find(key);
-	if (it != configMap.end()) {
+	auto it = fConfigMap.find(key);
+	if (it != fConfigMap.end()) {
 		return (it->second == "true" || it->second == "1");
 	}
 	return defaultValue;
@@ -196,42 +203,42 @@ std::vector<std::string> Config::getStringArray(const std::string& key) const {
 }
 
 void Config::setString(const std::string& key, const std::string& value) {
-	configMap[key] = value;
+	fConfigMap[key] = value;
 }
 
 void Config::setInt(const std::string& key, int value) {
-	configMap[key] = std::to_string(value);
+	fConfigMap[key] = std::to_string(value);
 }
 
 void Config::setDouble(const std::string& key, double value) {
-	configMap[key] = std::to_string(value);
+	fConfigMap[key] = std::to_string(value);
 }
 
 void Config::setBool(const std::string& key, bool value) {
-	configMap[key] = value ? "true" : "false";
+	fConfigMap[key] = value ? "true" : "false";
 }
 
 bool Config::has(const std::string& key) const {
-	return configMap.find(key) != configMap.end();
+	return fConfigMap.find(key) != fConfigMap.end();
 }
 
 std::string Config::getConfigDir() const {
-	return configDir;
+	return fConfigDir;
 }
 
 std::string Config::getDataDir() const {
-	return dataDir;
+	return fDataDir;
 }
 
 std::string Config::getRecipesDir() const {
-	return recipesDir;
+	return fRecipesDir;
 }
 
 std::string Config::getLogFile() const {
-	return logFile;
+	return fLogFile;
 }
 
-std::vector<std::string> Config::splitKey(const std::string& key) const {
+std::vector<std::string> Config::_SplitKey(const std::string& key) const {
 	std::vector<std::string> parts;
 	std::stringstream ss(key);
 	std::string part;
@@ -239,6 +246,17 @@ std::vector<std::string> Config::splitKey(const std::string& key) const {
 		parts.push_back(part);
 	}
 	return parts;
+}
+
+double Config::getExchangeRate() const {
+	std::string currency = getCurrency();
+	ExchangeRateService& rateService = ExchangeRateService::getInstance();
+	return rateService.getRate(currency);
+}
+
+bool Config::refreshExchangeRates() {
+	ExchangeRateService& rateService = ExchangeRateService::getInstance();
+	return rateService.refreshRates();
 }
 
 } // namespace Emiglio

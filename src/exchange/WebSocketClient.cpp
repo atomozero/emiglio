@@ -326,10 +326,13 @@ struct WebSocketClient::Impl {
             }
         }
 
-        // Masking key (client must mask)
+        // Masking key (client must mask) - use cryptographically secure random
         uint8_t mask[4];
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(0, 255);
         for (int i = 0; i < 4; i++) {
-            mask[i] = rand() % 256;
+            mask[i] = static_cast<uint8_t>(dis(gen));
             frame.push_back(mask[i]);
         }
 
@@ -435,11 +438,9 @@ struct WebSocketClient::Impl {
 };
 
 // Public API implementation
-WebSocketClient::WebSocketClient() : pImpl(new Impl()) {}
+WebSocketClient::WebSocketClient() : pImpl(std::make_unique<Impl>()) {}
 
-WebSocketClient::~WebSocketClient() {
-    delete pImpl;
-}
+WebSocketClient::~WebSocketClient() = default;
 
 bool WebSocketClient::connect(const std::string& url) {
     return pImpl->connect_socket(url);

@@ -27,43 +27,38 @@ namespace UI {
 
 DashboardView::DashboardView()
 	: BView("Dashboard", B_WILL_DRAW)
-	, autoRefreshRunner(nullptr)
-	, credentialManager(std::make_unique<CredentialManager>())
-	, binanceAPI(std::make_unique<BinanceAPI>())
-	, dataStorage(nullptr)
+	, fAutoRefreshRunner(nullptr)
+	, fCredentialManager(std::make_unique<CredentialManager>())
+	, fBinanceAPI(std::make_unique<BinanceAPI>())
+	, fDataStorage(std::make_unique<DataStorage>())
 {
 	SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
 
 	// Initialize credential manager
-	if (!credentialManager->init("/boot/home/Emiglio/data/emilio.db")) {
+	if (!fCredentialManager->init("/boot/home/Emiglio/data/emilio.db")) {
 		LOG_ERROR("Failed to initialize CredentialManager in Dashboard");
 	}
 
 	// Initialize shared database storage
-	dataStorage = new DataStorage();
-	if (!dataStorage->init("/boot/home/Emiglio/data/emilio.db")) {
+	if (!fDataStorage->init("/boot/home/Emiglio/data/emilio.db")) {
 		LOG_ERROR("Failed to initialize DataStorage in Dashboard");
-		delete dataStorage;
-		dataStorage = nullptr;
+		fDataStorage.reset();
 	}
 
-	BuildLayout();
+	_BuildLayout();
 	// Don't auto-refresh on construction - wait for AttachedToWindow
 }
 
 DashboardView::~DashboardView() {
-	delete autoRefreshRunner;
-	if (dataStorage) {
-		delete dataStorage;
-		dataStorage = nullptr;
-	}
+	delete fAutoRefreshRunner;
+	// fDataStorage is now a unique_ptr and will be automatically cleaned up
 }
 
 void DashboardView::AttachedToWindow() {
 	BView::AttachedToWindow();
 
-	if (runBacktestButton) runBacktestButton->SetTarget(this);
-	if (refreshBinanceButton) refreshBinanceButton->SetTarget(this);
+	if (fRunBacktestButton) fRunBacktestButton->SetTarget(this);
+	if (fRefreshBinanceButton) fRefreshBinanceButton->SetTarget(this);
 
 	// DISABLED: Auto-refresh was blocking the UI with synchronous network calls
 	// TODO: Move to background thread if needed
@@ -77,16 +72,18 @@ void DashboardView::AttachedToWindow() {
 
 void DashboardView::DetachedFromWindow() {
 	// Stop auto-refresh timer
-	delete autoRefreshRunner;
-	autoRefreshRunner = nullptr;
+	delete fAutoRefreshRunner;
+	fAutoRefreshRunner = nullptr;
 
 	BView::DetachedFromWindow();
 }
 
-void DashboardView::BuildLayout() {
+void DashboardView::_BuildLayout() {
 	// Get user's preferred currency symbol
 	Config& config = Config::getInstance();
+	std::string currency = config.getCurrency();
 	std::string currencySymbol = config.getCurrencySymbol();
+	LOG_INFO("DashboardView::BuildLayout() - Currency: " + currency + ", Symbol: " + currencySymbol);
 
 	// ========== HEADER SECTION ==========
 	BStringView* titleView = new BStringView("", "Dashboard");
@@ -120,40 +117,40 @@ void DashboardView::BuildLayout() {
 	rgb_color mutedColor = tint_color(ui_color(B_PANEL_TEXT_COLOR), B_LIGHTEN_1_TINT);
 	simModeLabel->SetHighColor(mutedColor);
 
-	totalCapitalLabel = new BStringView("", "Capital: Loading...");
-	availableCashLabel = new BStringView("", "Cash: Loading...");
-	investedLabel = new BStringView("", "Invested: Loading...");
+	fTotalCapitalLabel = new BStringView("", "Capital: Loading...");
+	fAvailableCashLabel = new BStringView("", "Cash: Loading...");
+	fInvestedLabel = new BStringView("", "Invested: Loading...");
 
-	totalCapitalLabel->SetFont(&valueFont);
-	availableCashLabel->SetFont(&valueFont);
-	investedLabel->SetFont(&valueFont);
+	fTotalCapitalLabel->SetFont(&valueFont);
+	fAvailableCashLabel->SetFont(&valueFont);
+	fInvestedLabel->SetFont(&valueFont);
 
-	totalPnLLabel = new BStringView("", "P&L: Loading...");
-	totalPnLPercentLabel = new BStringView("", "Total P&L %: Loading...");
-	totalPnLLabel->SetFont(&bigValueFont);
-	totalPnLPercentLabel->SetFont(&valueFont);
+	fTotalPnLLabel = new BStringView("", "P&L: Loading...");
+	fTotalPnLPercentLabel = new BStringView("", "Total P&L %: Loading...");
+	fTotalPnLLabel->SetFont(&bigValueFont);
+	fTotalPnLPercentLabel->SetFont(&valueFont);
 
-	winRateLabel = new BStringView("", "Win Rate: Loading...");
-	maxDrawdownLabel = new BStringView("", "Max Drawdown: Loading...");
-	openPositionsLabel = new BStringView("", "Open Positions: Loading...");
-	winRateLabel->SetFont(&valueFont);
-	maxDrawdownLabel->SetFont(&valueFont);
-	openPositionsLabel->SetFont(&valueFont);
+	fWinRateLabel = new BStringView("", "Win Rate: Loading...");
+	fMaxDrawdownLabel = new BStringView("", "Max Drawdown: Loading...");
+	fOpenPositionsLabel = new BStringView("", "Open Positions: Loading...");
+	fWinRateLabel->SetFont(&valueFont);
+	fMaxDrawdownLabel->SetFont(&valueFont);
+	fOpenPositionsLabel->SetFont(&valueFont);
 
 	BLayoutBuilder::Group<>(simulatedBox, B_VERTICAL, 4)
 		.SetInsets(B_USE_DEFAULT_SPACING)
 		.Add(simModeLabel)
 		.AddStrut(2)
-		.Add(totalCapitalLabel)
-		.Add(availableCashLabel)
-		.Add(investedLabel)
+		.Add(fTotalCapitalLabel)
+		.Add(fAvailableCashLabel)
+		.Add(fInvestedLabel)
 		.AddStrut(4)
-		.Add(totalPnLLabel)
-		.Add(totalPnLPercentLabel)
+		.Add(fTotalPnLLabel)
+		.Add(fTotalPnLPercentLabel)
 		.AddStrut(4)
-		.Add(winRateLabel)
-		.Add(maxDrawdownLabel)
-		.Add(openPositionsLabel)
+		.Add(fWinRateLabel)
+		.Add(fMaxDrawdownLabel)
+		.Add(fOpenPositionsLabel)
 		.AddGlue()
 		.End();
 
@@ -165,30 +162,30 @@ void DashboardView::BuildLayout() {
 	realModeLabel->SetFont(&labelFont);
 	realModeLabel->SetHighColor(mutedColor);
 
-	realCapitalLabel = new BStringView("", ("Capital: " + currencySymbol + "0.00").c_str());
-	realCashLabel = new BStringView("", ("Cash: " + currencySymbol + "0.00").c_str());
-	realInvestedLabel = new BStringView("", ("Invested: " + currencySymbol + "0.00").c_str());
+	fRealCapitalLabel = new BStringView("", ("Capital: " + currencySymbol + "0.00").c_str());
+	fRealCashLabel = new BStringView("", ("Cash: " + currencySymbol + "0.00").c_str());
+	fRealInvestedLabel = new BStringView("", ("Invested: " + currencySymbol + "0.00").c_str());
 
-	realCapitalLabel->SetFont(&bigValueFont);
-	realCashLabel->SetFont(&valueFont);
-	realInvestedLabel->SetFont(&valueFont);
+	fRealCapitalLabel->SetFont(&bigValueFont);
+	fRealCashLabel->SetFont(&valueFont);
+	fRealInvestedLabel->SetFont(&valueFont);
 
-	realPnLLabel = new BStringView("", ("P&L: " + currencySymbol + "0.00").c_str());
-	realPnLPercentLabel = new BStringView("", "Total P&L %: 0.00%");
+	fRealPnLLabel = new BStringView("", ("P&L: " + currencySymbol + "0.00").c_str());
+	fRealPnLPercentLabel = new BStringView("", "Total P&L %: 0.00%");
 
-	realPnLLabel->SetFont(&valueFont);
-	realPnLPercentLabel->SetFont(&valueFont);
+	fRealPnLLabel->SetFont(&valueFont);
+	fRealPnLPercentLabel->SetFont(&valueFont);
 
 	BLayoutBuilder::Group<>(realBox, B_VERTICAL, 4)
 		.SetInsets(B_USE_DEFAULT_SPACING)
 		.Add(realModeLabel)
 		.AddStrut(2)
-		.Add(realCapitalLabel)
-		.Add(realCashLabel)
-		.Add(realInvestedLabel)
+		.Add(fRealCapitalLabel)
+		.Add(fRealCashLabel)
+		.Add(fRealInvestedLabel)
 		.AddStrut(4)
-		.Add(realPnLLabel)
-		.Add(realPnLPercentLabel)
+		.Add(fRealPnLLabel)
+		.Add(fRealPnLPercentLabel)
 		.AddGlue()
 		.End();
 
@@ -196,22 +193,22 @@ void DashboardView::BuildLayout() {
 	BBox* systemBox = new BBox("system_box");
 	systemBox->SetLabel("System Status");
 
-	recipesCountLabel = new BStringView("", "Strategies: Loading...");
-	candlesCountLabel = new BStringView("", "Data Points: Loading...");
-	backtestsCountLabel = new BStringView("", "Backtest Results: Loading...");
-	appVersionLabel = new BStringView("", "Version: Loading...");
+	fRecipesCountLabel = new BStringView("", "Strategies: Loading...");
+	fCandlesCountLabel = new BStringView("", "Data Points: Loading...");
+	fBacktestsCountLabel = new BStringView("", "Backtest Results: Loading...");
+	fAppVersionLabel = new BStringView("", "Version: Loading...");
 
-	recipesCountLabel->SetFont(&valueFont);
-	candlesCountLabel->SetFont(&valueFont);
-	backtestsCountLabel->SetFont(&valueFont);
-	appVersionLabel->SetFont(&valueFont);
+	fRecipesCountLabel->SetFont(&valueFont);
+	fCandlesCountLabel->SetFont(&valueFont);
+	fBacktestsCountLabel->SetFont(&valueFont);
+	fAppVersionLabel->SetFont(&valueFont);
 
 	BLayoutBuilder::Group<>(systemBox, B_VERTICAL, 4)
 		.SetInsets(B_USE_DEFAULT_SPACING)
-		.Add(recipesCountLabel)
-		.Add(candlesCountLabel)
-		.Add(backtestsCountLabel)
-		.Add(appVersionLabel)
+		.Add(fRecipesCountLabel)
+		.Add(fCandlesCountLabel)
+		.Add(fBacktestsCountLabel)
+		.Add(fAppVersionLabel)
 		.AddGlue()
 		.End();
 
@@ -219,50 +216,51 @@ void DashboardView::BuildLayout() {
 	BBox* liveBox = new BBox("live_box");
 	liveBox->SetLabel("Exchange Account Details");
 
-	binanceStatusLabel = new BStringView("", "Status: Not connected");
-	binanceStatusLabel->SetFont(&labelFont);
-	binanceStatusLabel->SetHighColor(mutedColor);
+	fBinanceStatusLabel = new BStringView("", "Status: Not connected");
+	fBinanceStatusLabel->SetFont(&labelFont);
+	fBinanceStatusLabel->SetHighColor(mutedColor);
 
-	realTotalValueLabel = new BStringView("", ("Total: " + currencySymbol + "0.00").c_str());
-	realTotalValueLabel->SetFont(&bigValueFont);
+	fRealTotalValueLabel = new BStringView("", ("Total: " + currencySymbol + "0.00").c_str());
+	fRealTotalValueLabel->SetFont(&bigValueFont);
 
-	realExchangeCountLabel = new BStringView("", "Exchanges: 0");
-	realLastUpdateLabel = new BStringView("", "Last Update: Never");
-	realExchangeCountLabel->SetFont(&valueFont);
-	realLastUpdateLabel->SetFont(&labelFont);
-	realLastUpdateLabel->SetHighColor(mutedColor);
+	fRealExchangeCountLabel = new BStringView("", "Exchanges: 0");
+	fRealLastUpdateLabel = new BStringView("", "Last Update: Never");
+	fRealExchangeCountLabel->SetFont(&valueFont);
+	fRealLastUpdateLabel->SetFont(&labelFont);
+	fRealLastUpdateLabel->SetHighColor(mutedColor);
 
-	// Balances table (compact)
-	binanceBalancesView = new BColumnListView("binance_balances", B_WILL_DRAW, B_FANCY_BORDER, true);
-	binanceBalancesView->AddColumn(new BStringColumn("Asset", 80, 60, 100, B_TRUNCATE_END), 0);
-	binanceBalancesView->AddColumn(new BStringColumn("Total", 100, 80, 140, B_TRUNCATE_END), 1);
-	binanceBalancesView->AddColumn(new BStringColumn("Free", 100, 80, 140, B_TRUNCATE_END), 2);
-	binanceBalancesView->AddColumn(new BStringColumn("Locked", 100, 80, 140, B_TRUNCATE_END), 3);
-	binanceBalancesView->SetExplicitMinSize(BSize(B_SIZE_UNSET, 80));
-	binanceBalancesView->SetExplicitMaxSize(BSize(B_SIZE_UNSET, 100));
-	binanceBalancesView->SetExplicitPreferredSize(BSize(B_SIZE_UNSET, 90));
+	// Balances table (compact) with value column
+	fBinanceBalancesView = new BColumnListView("binance_balances", B_WILL_DRAW, B_FANCY_BORDER, true);
+	fBinanceBalancesView->AddColumn(new BStringColumn("Asset", 70, 50, 90, B_TRUNCATE_END), 0);
+	fBinanceBalancesView->AddColumn(new BStringColumn("Total", 90, 70, 120, B_TRUNCATE_END), 1);
+	fBinanceBalancesView->AddColumn(new BStringColumn("Free", 90, 70, 120, B_TRUNCATE_END), 2);
+	fBinanceBalancesView->AddColumn(new BStringColumn("Locked", 80, 60, 110, B_TRUNCATE_END), 3);
+	fBinanceBalancesView->AddColumn(new BStringColumn(("Value " + currencySymbol).c_str(), 100, 80, 140, B_TRUNCATE_END), 4);
+	fBinanceBalancesView->SetExplicitMinSize(BSize(B_SIZE_UNSET, 80));
+	fBinanceBalancesView->SetExplicitMaxSize(BSize(B_SIZE_UNSET, 100));
+	fBinanceBalancesView->SetExplicitPreferredSize(BSize(B_SIZE_UNSET, 90));
 
-	binanceBalancesScroll = new BScrollView("binance_scroll", binanceBalancesView,
+	fBinanceBalancesScroll = new BScrollView("binance_scroll", fBinanceBalancesView,
 	                                        0, false, true);
 
-	refreshBinanceButton = new BButton("Refresh Binance", new BMessage(MSG_REFRESH_BINANCE));
+	fRefreshBinanceButton = new BButton("Refresh Binance", new BMessage(MSG_REFRESH_BINANCE));
 
-	binanceTotalValueLabel = new BStringView("", "");
-	binanceTotalValueLabel->SetFont(&valueFont);
+	fBinanceTotalValueLabel = new BStringView("", "");
+	fBinanceTotalValueLabel->SetFont(&valueFont);
 
 	BLayoutBuilder::Group<>(liveBox, B_VERTICAL, 3)
 		.SetInsets(B_USE_DEFAULT_SPACING)
-		.Add(binanceStatusLabel)
+		.Add(fBinanceStatusLabel)
 		.AddStrut(2)
-		.Add(realTotalValueLabel)
-		.Add(realExchangeCountLabel)
-		.Add(realLastUpdateLabel)
+		.Add(fRealTotalValueLabel)
+		.Add(fRealExchangeCountLabel)
+		.Add(fRealLastUpdateLabel)
 		.AddStrut(4)
-		.Add(binanceBalancesScroll)
+		.Add(fBinanceBalancesScroll)
 		.AddStrut(2)
 		.AddGroup(B_HORIZONTAL)
 			.AddGlue()
-			.Add(refreshBinanceButton)
+			.Add(fRefreshBinanceButton)
 		.End()
 		.End();
 
@@ -270,28 +268,28 @@ void DashboardView::BuildLayout() {
 	BBox* simulatedBacktestsBox = new BBox("simulated_backtests_box");
 	simulatedBacktestsBox->SetLabel("Recent Backtests - Simulated");
 
-	simulatedBacktestsView = new BColumnListView("simulated_backtests", B_WILL_DRAW, B_FANCY_BORDER);
-	simulatedBacktestsView->AddColumn(new BStringColumn("Strategy", 110, 80, 160, B_TRUNCATE_END), 0);
-	simulatedBacktestsView->AddColumn(new BStringColumn("Symbol", 70, 50, 100, B_TRUNCATE_END), 1);
-	simulatedBacktestsView->AddColumn(new BStringColumn("Return %", 70, 60, 90, B_TRUNCATE_END), 2);
-	simulatedBacktestsView->AddColumn(new BStringColumn("Sharpe", 60, 50, 80, B_TRUNCATE_END), 3);
-	simulatedBacktestsView->AddColumn(new BStringColumn("Trades", 60, 50, 80, B_TRUNCATE_END), 4);
-	simulatedBacktestsView->AddColumn(new BStringColumn("Date", 85, 70, 100, B_TRUNCATE_END), 5);
-	simulatedBacktestsView->SetExplicitMinSize(BSize(B_SIZE_UNSET, 100));
-	simulatedBacktestsView->SetExplicitMaxSize(BSize(B_SIZE_UNSET, 140));
-	simulatedBacktestsView->SetExplicitPreferredSize(BSize(B_SIZE_UNSET, 120));
+	fSimulatedBacktestsView = new BColumnListView("simulated_backtests", B_WILL_DRAW, B_FANCY_BORDER);
+	fSimulatedBacktestsView->AddColumn(new BStringColumn("Strategy", 110, 80, 160, B_TRUNCATE_END), 0);
+	fSimulatedBacktestsView->AddColumn(new BStringColumn("Symbol", 70, 50, 100, B_TRUNCATE_END), 1);
+	fSimulatedBacktestsView->AddColumn(new BStringColumn("Return %", 70, 60, 90, B_TRUNCATE_END), 2);
+	fSimulatedBacktestsView->AddColumn(new BStringColumn("Sharpe", 60, 50, 80, B_TRUNCATE_END), 3);
+	fSimulatedBacktestsView->AddColumn(new BStringColumn("Trades", 60, 50, 80, B_TRUNCATE_END), 4);
+	fSimulatedBacktestsView->AddColumn(new BStringColumn("Date", 85, 70, 100, B_TRUNCATE_END), 5);
+	fSimulatedBacktestsView->SetExplicitMinSize(BSize(B_SIZE_UNSET, 100));
+	fSimulatedBacktestsView->SetExplicitMaxSize(BSize(B_SIZE_UNSET, 140));
+	fSimulatedBacktestsView->SetExplicitPreferredSize(BSize(B_SIZE_UNSET, 120));
 
-	simulatedBacktestsScroll = new BScrollView("simulated_scroll", simulatedBacktestsView,
+	fSimulatedBacktestsScroll = new BScrollView("simulated_scroll", fSimulatedBacktestsView,
 	                                           0, false, true);
 
-	runBacktestButton = new BButton("New Backtest", new BMessage(MSG_RUN_BACKTEST));
+	fRunBacktestButton = new BButton("New Backtest", new BMessage(MSG_RUN_BACKTEST));
 
 	BLayoutBuilder::Group<>(simulatedBacktestsBox, B_VERTICAL, 3)
 		.SetInsets(B_USE_DEFAULT_SPACING)
-		.Add(simulatedBacktestsScroll)
+		.Add(fSimulatedBacktestsScroll)
 		.AddStrut(2)
 		.AddGroup(B_HORIZONTAL)
-			.Add(runBacktestButton)
+			.Add(fRunBacktestButton)
 			.AddGlue()
 		.End()
 		.End();
@@ -300,23 +298,23 @@ void DashboardView::BuildLayout() {
 	BBox* realBacktestsBox = new BBox("real_backtests_box");
 	realBacktestsBox->SetLabel("Recent Backtests - Real Trading");
 
-	realBacktestsView = new BColumnListView("real_backtests", B_WILL_DRAW, B_FANCY_BORDER);
-	realBacktestsView->AddColumn(new BStringColumn("Strategy", 110, 80, 160, B_TRUNCATE_END), 0);
-	realBacktestsView->AddColumn(new BStringColumn("Symbol", 70, 50, 100, B_TRUNCATE_END), 1);
-	realBacktestsView->AddColumn(new BStringColumn("Return %", 70, 60, 90, B_TRUNCATE_END), 2);
-	realBacktestsView->AddColumn(new BStringColumn("Sharpe", 60, 50, 80, B_TRUNCATE_END), 3);
-	realBacktestsView->AddColumn(new BStringColumn("Trades", 60, 50, 80, B_TRUNCATE_END), 4);
-	realBacktestsView->AddColumn(new BStringColumn("Date", 85, 70, 100, B_TRUNCATE_END), 5);
-	realBacktestsView->SetExplicitMinSize(BSize(B_SIZE_UNSET, 100));
-	realBacktestsView->SetExplicitMaxSize(BSize(B_SIZE_UNSET, 140));
-	realBacktestsView->SetExplicitPreferredSize(BSize(B_SIZE_UNSET, 120));
+	fRealBacktestsView = new BColumnListView("real_backtests", B_WILL_DRAW, B_FANCY_BORDER);
+	fRealBacktestsView->AddColumn(new BStringColumn("Strategy", 110, 80, 160, B_TRUNCATE_END), 0);
+	fRealBacktestsView->AddColumn(new BStringColumn("Symbol", 70, 50, 100, B_TRUNCATE_END), 1);
+	fRealBacktestsView->AddColumn(new BStringColumn("Return %", 70, 60, 90, B_TRUNCATE_END), 2);
+	fRealBacktestsView->AddColumn(new BStringColumn("Sharpe", 60, 50, 80, B_TRUNCATE_END), 3);
+	fRealBacktestsView->AddColumn(new BStringColumn("Trades", 60, 50, 80, B_TRUNCATE_END), 4);
+	fRealBacktestsView->AddColumn(new BStringColumn("Date", 85, 70, 100, B_TRUNCATE_END), 5);
+	fRealBacktestsView->SetExplicitMinSize(BSize(B_SIZE_UNSET, 100));
+	fRealBacktestsView->SetExplicitMaxSize(BSize(B_SIZE_UNSET, 140));
+	fRealBacktestsView->SetExplicitPreferredSize(BSize(B_SIZE_UNSET, 120));
 
-	realBacktestsScroll = new BScrollView("real_scroll", realBacktestsView,
+	fRealBacktestsScroll = new BScrollView("real_scroll", fRealBacktestsView,
 	                                      0, false, true);
 
 	BLayoutBuilder::Group<>(realBacktestsBox, B_VERTICAL, 3)
 		.SetInsets(B_USE_DEFAULT_SPACING)
-		.Add(realBacktestsScroll)
+		.Add(fRealBacktestsScroll)
 		.End();
 
 	// ========== MAIN LAYOUT (ORGANIZED BY TYPE) ==========
@@ -325,16 +323,16 @@ void DashboardView::BuildLayout() {
 		.Add(titleView)
 		.Add(subtitleView)
 		.AddStrut(4)
-		// Row 1: Backtest/Live Portfolios (left) + Exchange/Real Backtests (right)
+		// Row 1: Backtest/Live Portfolios (left) + Live Portfolio/Exchange (right)
 		.AddGroup(B_HORIZONTAL, 6)
-			// Left column: Backtest + Live Portfolio sections
+			// Left column: Backtest + Simulated Backtests sections
 			.AddGroup(B_VERTICAL, 6)
 				.Add(simulatedBox, 1.0f)  // Backtest Portfolio
-				.Add(realBox, 1.0f)        // Live Portfolio
 				.Add(simulatedBacktestsBox, 2.0f)  // Simulated Backtests
 			.End()
-			// Right column: Exchange Account + Real Trading Backtests
+			// Right column: Live Portfolio + Exchange Account + Real Backtests
 			.AddGroup(B_VERTICAL, 6)
+				.Add(realBox, 1.0f)        // Live Portfolio
 				.Add(liveBox, 1.0f)        // Exchange Account Details
 				.Add(realBacktestsBox, 2.0f)  // Real Backtests
 			.End()
@@ -358,9 +356,9 @@ void DashboardView::MessageReceived(BMessage* message) {
 
 		case MSG_REFRESH_BINANCE:
 			// Load all real portfolio data (balances, summary, stats)
-			LoadBinancePortfolio();
-			LoadRealPortfolio();
-			LoadRealPortfolioSummary();
+			_LoadBinancePortfolio();
+			_LoadRealPortfolio();
+			_LoadRealPortfolioSummary();
 			break;
 
 		case MSG_SETTINGS_CHANGED:
@@ -368,6 +366,9 @@ void DashboardView::MessageReceived(BMessage* message) {
 			// Refresh all data with new settings
 			LOG_INFO("Settings changed - refreshing dashboard");
 			RefreshData();
+			// Also refresh real portfolio to update currency symbols
+			_LoadRealPortfolio();
+			_LoadRealPortfolioSummary();
 			break;
 
 		default:
@@ -377,14 +378,19 @@ void DashboardView::MessageReceived(BMessage* message) {
 }
 
 void DashboardView::RefreshData() {
-	LoadPortfolioStats();
-	LoadRecentBacktests();
+	// Reload configuration to get latest settings (including currency)
+	Config& config = Config::getInstance();
+	std::string configPath = config.getConfigDir() + "/config.json";
+	config.load(configPath);
+
+	_LoadPortfolioStats();
+	_LoadRecentBacktests();
 	// REMOVED: LoadBinancePortfolio() and LoadRealPortfolioSummary()
 	// These make blocking network calls and freeze the UI
 	// User must click "Refresh" button manually to load Binance data
 }
 
-void DashboardView::LoadPortfolioStats() {
+void DashboardView::_LoadPortfolioStats() {
 	// Calculate real portfolio stats from backtest results
 	double initialCapital = 10000.0;
 	double currentCapital = initialCapital;
@@ -396,8 +402,8 @@ void DashboardView::LoadPortfolioStats() {
 	int backtestCount = 0;
 
 	// Get all backtest results to calculate aggregate metrics
-	if (dataStorage) {
-		std::vector<BacktestResult> results = dataStorage->getAllBacktestResults();
+	if (fDataStorage) {
+		std::vector<BacktestResult> results = fDataStorage->getAllBacktestResults();
 		backtestCount = results.size();
 
 		if (backtestCount > 0) {
@@ -440,49 +446,56 @@ void DashboardView::LoadPortfolioStats() {
 	// Format values with user's preferred currency symbol
 	Config& config = Config::getInstance();
 	std::string currencySymbol = config.getCurrencySymbol();
+
+	// Convert from USD to user's preferred currency (display only)
+	double convertedCapital = config.convertFromUSD(currentCapital);
+	double convertedCash = config.convertFromUSD(availableCash);
+	double convertedInvested = config.convertFromUSD(invested);
+	double convertedPnL = config.convertFromUSD(pnl);
+
 	std::ostringstream oss;
 
 	oss.str("");
-	oss << "Capital: " << currencySymbol << std::fixed << std::setprecision(2) << currentCapital;
-	totalCapitalLabel->SetText(oss.str().c_str());
+	oss << "Capital: " << currencySymbol << std::fixed << std::setprecision(2) << convertedCapital;
+	fTotalCapitalLabel->SetText(oss.str().c_str());
 
 	oss.str("");
-	oss << "Cash: " << currencySymbol << std::fixed << std::setprecision(2) << availableCash;
-	availableCashLabel->SetText(oss.str().c_str());
+	oss << "Cash: " << currencySymbol << std::fixed << std::setprecision(2) << convertedCash;
+	fAvailableCashLabel->SetText(oss.str().c_str());
 
 	oss.str("");
-	oss << "Invested: " << currencySymbol << std::fixed << std::setprecision(2) << invested;
-	investedLabel->SetText(oss.str().c_str());
+	oss << "Invested: " << currencySymbol << std::fixed << std::setprecision(2) << convertedInvested;
+	fInvestedLabel->SetText(oss.str().c_str());
 
 	oss.str("");
-	oss << "P&L: " << currencySymbol << std::fixed << std::setprecision(2) << pnl;
-	totalPnLLabel->SetText(oss.str().c_str());
+	oss << "P&L: " << currencySymbol << std::fixed << std::setprecision(2) << convertedPnL;
+	fTotalPnLLabel->SetText(oss.str().c_str());
 
 	// Color code P&L
 	if (pnl > 0) {
-		totalPnLLabel->SetHighColor(0, 150, 0); // Green
-		totalPnLPercentLabel->SetHighColor(0, 150, 0);
+		fTotalPnLLabel->SetHighColor(0, 150, 0); // Green
+		fTotalPnLPercentLabel->SetHighColor(0, 150, 0);
 	} else if (pnl < 0) {
-		totalPnLLabel->SetHighColor(200, 0, 0); // Red
-		totalPnLPercentLabel->SetHighColor(200, 0, 0);
+		fTotalPnLLabel->SetHighColor(200, 0, 0); // Red
+		fTotalPnLPercentLabel->SetHighColor(200, 0, 0);
 	}
 
 	oss.str("");
 	oss << "Total P&L %: " << std::fixed << std::setprecision(2) << pnlPercent << "%";
-	totalPnLPercentLabel->SetText(oss.str().c_str());
+	fTotalPnLPercentLabel->SetText(oss.str().c_str());
 
 	// Display real performance metrics
 	oss.str("");
 	oss << "Win Rate: " << std::fixed << std::setprecision(1) << totalWinRate << "%";
-	winRateLabel->SetText(oss.str().c_str());
+	fWinRateLabel->SetText(oss.str().c_str());
 
 	oss.str("");
 	oss << "Max Drawdown: " << std::fixed << std::setprecision(2) << worstMaxDrawdown << "%";
-	maxDrawdownLabel->SetText(oss.str().c_str());
+	fMaxDrawdownLabel->SetText(oss.str().c_str());
 
 	oss.str("");
 	oss << "Open Positions: " << totalOpenPositions;
-	openPositionsLabel->SetText(oss.str().c_str());
+	fOpenPositionsLabel->SetText(oss.str().c_str());
 
 	// System stats
 	// Count recipes
@@ -503,33 +516,33 @@ void DashboardView::LoadPortfolioStats() {
 
 	oss.str("");
 	oss << "Strategies: " << recipeCount;
-	recipesCountLabel->SetText(oss.str().c_str());
+	fRecipesCountLabel->SetText(oss.str().c_str());
 
 	// Count candles in database (using shared instance)
 	int candleCount = 0;
-	if (dataStorage) {
-		candleCount = dataStorage->getCandleCount("binance", "", "");
+	if (fDataStorage) {
+		candleCount = fDataStorage->getCandleCount("binance", "", "");
 	}
 
 	oss.str("");
 	oss << "Data Points: " << candleCount;
-	candlesCountLabel->SetText(oss.str().c_str());
+	fCandlesCountLabel->SetText(oss.str().c_str());
 
 	// Use backtestCount already calculated above
 	oss.str("");
 	oss << "Backtest Results: " << backtestCount;
-	backtestsCountLabel->SetText(oss.str().c_str());
+	fBacktestsCountLabel->SetText(oss.str().c_str());
 
 	// App version from Config (reuse config from above)
 	std::string appVersion = config.getString("app.version", "1.0.0");
 	oss.str("");
 	oss << "Version: " << appVersion;
-	appVersionLabel->SetText(oss.str().c_str());
+	fAppVersionLabel->SetText(oss.str().c_str());
 
 	LOG_INFO("Dashboard stats refreshed");
 }
 
-void DashboardView::LoadRealPortfolio() {
+void DashboardView::_LoadRealPortfolio() {
 	// Load real portfolio data from exchange accounts (Binance, etc.)
 	double realCapital = 0.0;
 	double realCash = 0.0;
@@ -541,11 +554,11 @@ void DashboardView::LoadRealPortfolio() {
 	std::string currencySymbol = config.getCurrencySymbol();
 
 	// Try to load Binance balances
-	if (credentialManager && credentialManager->hasCredentials("binance")) {
+	if (fCredentialManager && fCredentialManager->hasCredentials("binance")) {
 		std::string apiKey, apiSecret;
-		if (credentialManager->loadCredentials("binance", apiKey, apiSecret)) {
-			if (binanceAPI && binanceAPI->init(apiKey, apiSecret)) {
-				std::vector<Balance> balances = binanceAPI->getBalances();
+		if (fCredentialManager->loadCredentials("binance", apiKey, apiSecret)) {
+			if (fBinanceAPI && fBinanceAPI->init(apiKey, apiSecret)) {
+				std::vector<Balance> balances = fBinanceAPI->getBalances();
 
 				if (!balances.empty()) {
 					// Calculate total capital from all assets
@@ -570,47 +583,53 @@ void DashboardView::LoadRealPortfolio() {
 	double realPnL = realCapital - initialCapital;
 	double realPnLPercent = initialCapital > 0 ? (realPnL / initialCapital) * 100.0 : 0.0;
 
+	// Convert from USD to user's preferred currency (display only)
+	double convertedRealCapital = config.convertFromUSD(realCapital);
+	double convertedRealCash = config.convertFromUSD(realCash);
+	double convertedRealInvested = config.convertFromUSD(realInvested);
+	double convertedRealPnL = config.convertFromUSD(realPnL);
+
 	// Format and display values
 	std::ostringstream oss;
 
 	oss.str("");
-	oss << "Capital: " << currencySymbol << std::fixed << std::setprecision(2) << realCapital;
-	realCapitalLabel->SetText(oss.str().c_str());
+	oss << "Capital: " << currencySymbol << std::fixed << std::setprecision(2) << convertedRealCapital;
+	fRealCapitalLabel->SetText(oss.str().c_str());
 
 	oss.str("");
-	oss << "Cash: " << currencySymbol << std::fixed << std::setprecision(2) << realCash;
-	realCashLabel->SetText(oss.str().c_str());
+	oss << "Cash: " << currencySymbol << std::fixed << std::setprecision(2) << convertedRealCash;
+	fRealCashLabel->SetText(oss.str().c_str());
 
 	oss.str("");
-	oss << "Invested: " << currencySymbol << std::fixed << std::setprecision(2) << realInvested;
-	realInvestedLabel->SetText(oss.str().c_str());
+	oss << "Invested: " << currencySymbol << std::fixed << std::setprecision(2) << convertedRealInvested;
+	fRealInvestedLabel->SetText(oss.str().c_str());
 
 	oss.str("");
-	oss << "P&L: " << currencySymbol << std::fixed << std::setprecision(2) << realPnL;
-	realPnLLabel->SetText(oss.str().c_str());
+	oss << "P&L: " << currencySymbol << std::fixed << std::setprecision(2) << convertedRealPnL;
+	fRealPnLLabel->SetText(oss.str().c_str());
 
 	// Color code P&L
 	if (realPnL > 0) {
-		realPnLLabel->SetHighColor(0, 150, 0); // Green
-		realPnLPercentLabel->SetHighColor(0, 150, 0);
+		fRealPnLLabel->SetHighColor(0, 150, 0); // Green
+		fRealPnLPercentLabel->SetHighColor(0, 150, 0);
 	} else if (realPnL < 0) {
-		realPnLLabel->SetHighColor(200, 0, 0); // Red
-		realPnLPercentLabel->SetHighColor(200, 0, 0);
+		fRealPnLLabel->SetHighColor(200, 0, 0); // Red
+		fRealPnLPercentLabel->SetHighColor(200, 0, 0);
 	}
 
 	oss.str("");
 	oss << "Total P&L %: " << std::fixed << std::setprecision(2) << realPnLPercent << "%";
-	realPnLPercentLabel->SetText(oss.str().c_str());
+	fRealPnLPercentLabel->SetText(oss.str().c_str());
 
 	LOG_INFO("Real portfolio stats loaded");
 }
 
-void DashboardView::LoadRecentBacktests() {
-	simulatedBacktestsView->Clear();
-	realBacktestsView->Clear();
+void DashboardView::_LoadRecentBacktests() {
+	fSimulatedBacktestsView->Clear();
+	fRealBacktestsView->Clear();
 
 	// Query database for recent backtest results (using shared instance)
-	if (!dataStorage) {
+	if (!fDataStorage) {
 		BRow* simRow = new BRow();
 		simRow->SetField(new BStringField("Failed to load results"), 0);
 		simRow->SetField(new BStringField(""), 1);
@@ -618,7 +637,7 @@ void DashboardView::LoadRecentBacktests() {
 		simRow->SetField(new BStringField(""), 3);
 		simRow->SetField(new BStringField(""), 4);
 		simRow->SetField(new BStringField(""), 5);
-		simulatedBacktestsView->AddRow(simRow);
+		fSimulatedBacktestsView->AddRow(simRow);
 
 		BRow* realRow = new BRow();
 		realRow->SetField(new BStringField("Failed to load results"), 0);
@@ -627,13 +646,13 @@ void DashboardView::LoadRecentBacktests() {
 		realRow->SetField(new BStringField(""), 3);
 		realRow->SetField(new BStringField(""), 4);
 		realRow->SetField(new BStringField(""), 5);
-		realBacktestsView->AddRow(realRow);
+		fRealBacktestsView->AddRow(realRow);
 
 		LOG_WARNING("DataStorage not initialized");
 		return;
 	}
 
-	std::vector<BacktestResult> results = dataStorage->getAllBacktestResults();
+	std::vector<BacktestResult> results = fDataStorage->getAllBacktestResults();
 
 	if (results.empty()) {
 		// Add placeholder row for simulated backtests
@@ -644,7 +663,7 @@ void DashboardView::LoadRecentBacktests() {
 		simRow->SetField(new BStringField(""), 3);
 		simRow->SetField(new BStringField(""), 4);
 		simRow->SetField(new BStringField(""), 5);
-		simulatedBacktestsView->AddRow(simRow);
+		fSimulatedBacktestsView->AddRow(simRow);
 
 		// Add placeholder row for real trading
 		BRow* realRow = new BRow();
@@ -654,7 +673,7 @@ void DashboardView::LoadRecentBacktests() {
 		realRow->SetField(new BStringField(""), 3);
 		realRow->SetField(new BStringField(""), 4);
 		realRow->SetField(new BStringField(""), 5);
-		realBacktestsView->AddRow(realRow);
+		fRealBacktestsView->AddRow(realRow);
 
 		LOG_INFO("No backtest results in database");
 		return;
@@ -721,7 +740,7 @@ void DashboardView::LoadRecentBacktests() {
 		row->SetField(new BStringField(sharpeStr.str().c_str()), 3);
 		row->SetField(new BStringField(tradesStr.str().c_str()), 4);
 		row->SetField(new BStringField(dateStr.c_str()), 5);
-		simulatedBacktestsView->AddRow(row);
+		fSimulatedBacktestsView->AddRow(row);
 	}
 
 	// Add placeholder for real trading
@@ -732,89 +751,93 @@ void DashboardView::LoadRecentBacktests() {
 	realRow->SetField(new BStringField(""), 3);
 	realRow->SetField(new BStringField(""), 4);
 	realRow->SetField(new BStringField(""), 5);
-	realBacktestsView->AddRow(realRow);
+	fRealBacktestsView->AddRow(realRow);
 
 	// Update count label
 	std::ostringstream countStr;
 	countStr << "Backtest Results: " << results.size();
-	backtestsCountLabel->SetText(countStr.str().c_str());
+	fBacktestsCountLabel->SetText(countStr.str().c_str());
 
 	LOG_INFO("Loaded " + std::to_string(results.size()) + " backtest results");
 }
 
-void DashboardView::LoadBinancePortfolio() {
+void DashboardView::_LoadBinancePortfolio() {
 	// Clear existing rows
-	binanceBalancesView->Clear();
+	fBinanceBalancesView->Clear();
 
 	// Check if credentials exist
-	if (!credentialManager->hasCredentials("binance")) {
-		binanceStatusLabel->SetText("Status: Not configured");
-		binanceStatusLabel->SetHighColor(200, 100, 0); // Orange
-		binanceTotalValueLabel->SetText("");
+	if (!fCredentialManager->hasCredentials("binance")) {
+		fBinanceStatusLabel->SetText("Status: Not configured");
+		fBinanceStatusLabel->SetHighColor(200, 100, 0); // Orange
+		fBinanceTotalValueLabel->SetText("");
 
 		BRow* row = new BRow();
 		row->SetField(new BStringField("N/A"), 0);
 		row->SetField(new BStringField("No API credentials configured"), 1);
 		row->SetField(new BStringField("Go to Settings tab"), 2);
 		row->SetField(new BStringField(""), 3);
-		binanceBalancesView->AddRow(row);
+		row->SetField(new BStringField(""), 4);
+		fBinanceBalancesView->AddRow(row);
 		return;
 	}
 
 	// Load credentials
 	std::string apiKey, apiSecret;
-	if (!credentialManager->loadCredentials("binance", apiKey, apiSecret)) {
-		binanceStatusLabel->SetText("Status: Failed to load credentials");
-		binanceStatusLabel->SetHighColor(200, 0, 0); // Red
-		binanceTotalValueLabel->SetText("");
+	if (!fCredentialManager->loadCredentials("binance", apiKey, apiSecret)) {
+		fBinanceStatusLabel->SetText("Status: Failed to load credentials");
+		fBinanceStatusLabel->SetHighColor(200, 0, 0); // Red
+		fBinanceTotalValueLabel->SetText("");
 
 		BRow* row = new BRow();
 		row->SetField(new BStringField("Error"), 0);
 		row->SetField(new BStringField("Failed to decrypt credentials"), 1);
 		row->SetField(new BStringField("Check configuration"), 2);
 		row->SetField(new BStringField(""), 3);
-		binanceBalancesView->AddRow(row);
+		row->SetField(new BStringField(""), 4);
+		fBinanceBalancesView->AddRow(row);
 
-		LOG_ERROR("Failed to load Binance credentials: " + credentialManager->getLastError());
+		LOG_ERROR("Failed to load Binance credentials: " + fCredentialManager->getLastError());
 		return;
 	}
 
 	// Initialize Binance API
-	if (!binanceAPI->init(apiKey, apiSecret)) {
-		binanceStatusLabel->SetText("Status: API initialization failed");
-		binanceStatusLabel->SetHighColor(200, 0, 0); // Red
-		binanceTotalValueLabel->SetText("");
+	if (!fBinanceAPI->init(apiKey, apiSecret)) {
+		fBinanceStatusLabel->SetText("Status: API initialization failed");
+		fBinanceStatusLabel->SetHighColor(200, 0, 0); // Red
+		fBinanceTotalValueLabel->SetText("");
 
 		BRow* row = new BRow();
 		row->SetField(new BStringField("Error"), 0);
 		row->SetField(new BStringField("Failed to initialize Binance API"), 1);
 		row->SetField(new BStringField("Check API keys"), 2);
 		row->SetField(new BStringField(""), 3);
-		binanceBalancesView->AddRow(row);
+		row->SetField(new BStringField(""), 4);
+		fBinanceBalancesView->AddRow(row);
 
 		LOG_ERROR("Failed to initialize BinanceAPI");
 		return;
 	}
 
-	binanceStatusLabel->SetText("Status: Loading...");
-	binanceStatusLabel->SetHighColor(0, 0, 0); // Black
-	binanceTotalValueLabel->SetText("");
-	binanceStatusLabel->Invalidate();
+	fBinanceStatusLabel->SetText("Status: Loading...");
+	fBinanceStatusLabel->SetHighColor(0, 0, 0); // Black
+	fBinanceTotalValueLabel->SetText("");
+	fBinanceStatusLabel->Invalidate();
 
 	// Fetch balances
-	std::vector<Balance> balances = binanceAPI->getBalances();
+	std::vector<Balance> balances = fBinanceAPI->getBalances();
 
 	if (balances.empty()) {
-		binanceStatusLabel->SetText("Status: Connected");
-		binanceStatusLabel->SetHighColor(0, 150, 0); // Green
-		binanceTotalValueLabel->SetText("Total Assets: 0");
+		fBinanceStatusLabel->SetText("Status: Connected");
+		fBinanceStatusLabel->SetHighColor(0, 150, 0); // Green
+		fBinanceTotalValueLabel->SetText("Total Assets: 0");
 
 		BRow* row = new BRow();
 		row->SetField(new BStringField("N/A"), 0);
 		row->SetField(new BStringField("No holdings found"), 1);
 		row->SetField(new BStringField("Account is empty"), 2);
 		row->SetField(new BStringField(""), 3);
-		binanceBalancesView->AddRow(row);
+		row->SetField(new BStringField(""), 4);
+		fBinanceBalancesView->AddRow(row);
 
 		LOG_INFO("No balances found in Binance account");
 		return;
@@ -827,15 +850,19 @@ void DashboardView::LoadBinancePortfolio() {
 	          });
 
 	// Display balances
-	binanceStatusLabel->SetText("Status: Connected & Loaded");
-	binanceStatusLabel->SetHighColor(0, 150, 0); // Green
+	fBinanceStatusLabel->SetText("Status: Connected & Loaded");
+	fBinanceStatusLabel->SetHighColor(0, 150, 0); // Green
 
 	// Calculate total count
 	std::ostringstream totalText;
 	totalText << "Total Assets: " << balances.size() << " different cryptocurrencies";
-	binanceTotalValueLabel->SetText(totalText.str().c_str());
+	fBinanceTotalValueLabel->SetText(totalText.str().c_str());
 
-	// Display each balance in column list
+	// Get user's preferred currency for display
+	Config& config = Config::getInstance();
+	std::string currencySymbol = config.getCurrencySymbol();
+
+	// Display each balance in column list with converted value
 	for (const auto& balance : balances) {
 		BRow* row = new BRow();
 
@@ -861,35 +888,70 @@ void DashboardView::LoadBinancePortfolio() {
 		}
 		row->SetField(new BStringField(lockedStr.str().c_str()), 3);
 
-		binanceBalancesView->AddRow(row);
+		// Value in user's preferred currency
+		std::ostringstream valueStr;
+		if (balance.asset == "USDT" || balance.asset == "USDC" || balance.asset == "BUSD") {
+			// Stablecoins are 1:1 with USD
+			double convertedValue = config.convertFromUSD(balance.total);
+			valueStr << currencySymbol << std::fixed << std::setprecision(2) << convertedValue;
+		} else {
+			// Try to get price from trading pair
+			try {
+				Ticker ticker = fBinanceAPI->getTicker(balance.asset + "USDT");
+				if (ticker.lastPrice > 0.0) {
+					double valueInUSDT = balance.total * ticker.lastPrice;
+					double convertedValue = config.convertFromUSD(valueInUSDT);
+					valueStr << currencySymbol << std::fixed << std::setprecision(2) << convertedValue;
+				} else {
+					valueStr << "N/A";
+				}
+			} catch (...) {
+				// Price not available
+				valueStr << "N/A";
+			}
+		}
+		row->SetField(new BStringField(valueStr.str().c_str()), 4);
+
+		fBinanceBalancesView->AddRow(row);
 	}
 
 	LOG_INFO("Loaded " + std::to_string(balances.size()) + " Binance balances");
 }
 
-void DashboardView::LoadRealPortfolioSummary() {
+void DashboardView::_LoadRealPortfolioSummary() {
 	// Aggregate real portfolio data across all exchanges
 	double totalValue = 0.0;
 	int activeExchanges = 0;
 	time_t lastUpdate = 0;
 
 	// Check Binance
-	if (credentialManager->hasCredentials("binance")) {
+	if (fCredentialManager->hasCredentials("binance")) {
 		std::string apiKey, apiSecret;
-		if (credentialManager->loadCredentials("binance", apiKey, apiSecret)) {
-			if (binanceAPI->init(apiKey, apiSecret)) {
-				std::vector<Balance> balances = binanceAPI->getBalances();
+		if (fCredentialManager->loadCredentials("binance", apiKey, apiSecret)) {
+			if (fBinanceAPI->init(apiKey, apiSecret)) {
+				std::vector<Balance> balances = fBinanceAPI->getBalances();
 				if (!balances.empty()) {
 					activeExchanges++;
-					// For now, just sum up all balances
-					// TODO: Convert to USD using price API
+					// Convert crypto assets to USD value
 					for (const auto& balance : balances) {
-						// Approximate value (needs real price conversion)
+						// Stablecoins are 1:1 with USD
 						if (balance.asset == "USDT" || balance.asset == "USDC" || balance.asset == "BUSD") {
 							totalValue += balance.total;
+						} else {
+							// For other cryptocurrencies, fetch current price
+							try {
+								// Try to get price from {ASSET}USDT trading pair
+								Ticker ticker = fBinanceAPI->getTicker(balance.asset + "USDT");
+								if (ticker.lastPrice > 0.0) {
+									double valueInUSDT = balance.total * ticker.lastPrice;
+									totalValue += valueInUSDT;
+									LOG_DEBUG("DashboardView: " + balance.asset + " value = " + std::to_string(valueInUSDT) + " USDT");
+								}
+							} catch (...) {
+								// Silently skip if ticker not available (e.g., no USDT pair)
+								LOG_DEBUG("DashboardView: Could not fetch price for " + balance.asset);
+							}
 						}
-						// For other assets, we'd need to fetch current price
-						// This is a simplified version
 					}
 					lastUpdate = time(nullptr);
 				}
@@ -904,18 +966,22 @@ void DashboardView::LoadRealPortfolioSummary() {
 	// Update labels with user's preferred currency symbol
 	Config& config = Config::getInstance();
 	std::string currencySymbol = config.getCurrencySymbol();
+
+	// Convert from USD to user's preferred currency (display only)
+	double convertedTotalValue = config.convertFromUSD(totalValue);
+
 	std::ostringstream oss;
 
 	oss.str("");
-	oss << "Total: " << currencySymbol << std::fixed << std::setprecision(2) << totalValue;
-	realTotalValueLabel->SetText(oss.str().c_str());
+	oss << "Total: " << currencySymbol << std::fixed << std::setprecision(2) << convertedTotalValue;
+	fRealTotalValueLabel->SetText(oss.str().c_str());
 
 	oss.str("");
 	oss << "Exchanges: " << activeExchanges;
 	if (activeExchanges > 0) {
 		oss << " (Binance)";
 	}
-	realExchangeCountLabel->SetText(oss.str().c_str());
+	fRealExchangeCountLabel->SetText(oss.str().c_str());
 
 	oss.str("");
 	if (lastUpdate > 0) {
@@ -926,7 +992,7 @@ void DashboardView::LoadRealPortfolioSummary() {
 	} else {
 		oss << "Last Update: Never";
 	}
-	realLastUpdateLabel->SetText(oss.str().c_str());
+	fRealLastUpdateLabel->SetText(oss.str().c_str());
 
 	LOG_INFO("Real portfolio summary: " + currencySymbol + std::to_string(totalValue) + " across " + std::to_string(activeExchanges) + " exchanges");
 }
