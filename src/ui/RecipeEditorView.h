@@ -16,6 +16,8 @@ class BStringView;
 namespace Emiglio {
 
 struct Recipe; // Forward declaration
+struct IndicatorConfig; // Forward declaration
+struct TradingRule; // Forward declaration
 
 namespace UI {
 
@@ -98,6 +100,11 @@ private:
 	// State
 	std::string currentRecipePath;
 	std::vector<std::string> availableRecipes;
+
+	// Structured data storage (to avoid string parsing fragility)
+	std::vector<IndicatorConfig> currentIndicators;
+	std::vector<TradingRule> currentEntryRules;
+	std::vector<TradingRule> currentExitRules;
 
 	// Message constants
 	enum {
