@@ -197,7 +197,7 @@ void RecipeEditorView::BuildLayout() {
 }
 
 void RecipeEditorView::LoadRecipeList() {
-	recipeListView->MakeEmpty();
+	ClearListView(recipeListView);
 	availableRecipes.clear();
 
 	BDirectory dir("/boot/home/Emiglio/recipes");
@@ -344,7 +344,7 @@ void RecipeEditorView::LoadRecipe(const std::string& path) {
 	positionSizeControl->SetText(buffer);
 
 	// Load indicators
-	indicatorsListView->MakeEmpty();
+	ClearListView(indicatorsListView);
 	for (size_t i = 0; i < recipe.indicators.size(); i++) {
 		const auto& indicator = recipe.indicators[i];
 		BString text;
@@ -357,7 +357,7 @@ void RecipeEditorView::LoadRecipe(const std::string& path) {
 	}
 
 	// Load entry conditions
-	entryConditionsListView->MakeEmpty();
+	ClearListView(entryConditionsListView);
 	for (size_t i = 0; i < recipe.entryConditions.rules.size(); i++) {
 		const auto& rule = recipe.entryConditions.rules[i];
 		BString text;
@@ -371,7 +371,7 @@ void RecipeEditorView::LoadRecipe(const std::string& path) {
 	}
 
 	// Load exit conditions
-	exitConditionsListView->MakeEmpty();
+	ClearListView(exitConditionsListView);
 	for (size_t i = 0; i < recipe.exitConditions.rules.size(); i++) {
 		const auto& rule = recipe.exitConditions.rules[i];
 		BString text;
@@ -661,9 +661,9 @@ void RecipeEditorView::ClearForm() {
 	takeProfitControl->SetText("5.0");
 	positionSizeControl->SetText("95.0");
 
-	indicatorsListView->MakeEmpty();
-	entryConditionsListView->MakeEmpty();
-	exitConditionsListView->MakeEmpty();
+	ClearListView(indicatorsListView);
+	ClearListView(entryConditionsListView);
+	ClearListView(exitConditionsListView);
 
 	currentRecipePath = "";
 	statusLabel->SetText("Ready");
