@@ -345,43 +345,32 @@ void RecipeEditorView::LoadRecipe(const std::string& path) {
 
 	// Load indicators
 	ClearListView(indicatorsListView);
+	currentIndicators.clear();
 	for (size_t i = 0; i < recipe.indicators.size(); i++) {
 		const auto& indicator = recipe.indicators[i];
-		BString text;
-		text << indicator.name.c_str() << "(period=" << indicator.period;
-		for (auto pit = indicator.params.begin(); pit != indicator.params.end(); ++pit) {
-			text << ", " << pit->first.c_str() << "=" << pit->second;
-		}
-		text << ")";
-		indicatorsListView->AddItem(new BStringItem(text));
+		currentIndicators.push_back(indicator);
+		std::string text = FormatIndicator(indicator);
+		indicatorsListView->AddItem(new BStringItem(text.c_str()));
 	}
 
 	// Load entry conditions
 	ClearListView(entryConditionsListView);
+	currentEntryRules.clear();
 	for (size_t i = 0; i < recipe.entryConditions.rules.size(); i++) {
 		const auto& rule = recipe.entryConditions.rules[i];
-		BString text;
-		text << rule.indicator.c_str() << " " << rule.operatorStr.c_str() << " ";
-		if (!rule.compareWith.empty()) {
-			text << rule.compareWith.c_str();
-		} else {
-			text << rule.value;
-		}
-		entryConditionsListView->AddItem(new BStringItem(text));
+		currentEntryRules.push_back(rule);
+		std::string text = FormatRule(rule);
+		entryConditionsListView->AddItem(new BStringItem(text.c_str()));
 	}
 
 	// Load exit conditions
 	ClearListView(exitConditionsListView);
+	currentExitRules.clear();
 	for (size_t i = 0; i < recipe.exitConditions.rules.size(); i++) {
 		const auto& rule = recipe.exitConditions.rules[i];
-		BString text;
-		text << rule.indicator.c_str() << " " << rule.operatorStr.c_str() << " ";
-		if (!rule.compareWith.empty()) {
-			text << rule.compareWith.c_str();
-		} else {
-			text << rule.value;
-		}
-		exitConditionsListView->AddItem(new BStringItem(text));
+		currentExitRules.push_back(rule);
+		std::string text = FormatRule(rule);
+		exitConditionsListView->AddItem(new BStringItem(text.c_str()));
 	}
 
 	statusLabel->SetText("Recipe loaded");
