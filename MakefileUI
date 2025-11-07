@@ -17,6 +17,8 @@ SRCS = \
 	src/ui/ChartsView.cpp \
 	src/ui/LiveTradingView.cpp \
 	src/ui/RecipeEditorView.cpp \
+	src/ui/AddIndicatorDialog.cpp \
+	src/ui/AddConditionDialog.cpp \
 	src/ui/SettingsView.cpp \
 	src/utils/Logger.cpp \
 	src/utils/JsonParser.cpp \
