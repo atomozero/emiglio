@@ -428,85 +428,16 @@ void RecipeEditorView::SaveRecipe() {
 	recipe.risk.maxDailyLossPercent = 5.0;  // Default 5%
 	recipe.risk.maxOpenPositions = 1;       // Default 1
 
-	// 5. Indicators - Parse from list view items
-	for (int32 i = 0; i < indicatorsListView->CountItems(); i++) {
-		BStringItem* item = dynamic_cast<BStringItem*>(indicatorsListView->ItemAt(i));
-		if (!item) continue;
+	// 5. Indicators - Use structured data
+	recipe.indicators = currentIndicators;
 
-		// Parse indicator string: "rsi(period=14, oversold=30, overbought=70)"
-		BString text(item->Text());
-		int32 openParen = text.FindFirst("(");
-		if (openParen < 0) continue;
-
-		IndicatorConfig indicator;
-		indicator.name = text.String();
-		indicator.name = indicator.name.substr(0, openParen);
-		indicator.period = 14;  // Default
-
-		// Extract period from params (simple parsing)
-		int32 periodPos = text.FindFirst("period=");
-		if (periodPos >= 0) {
-			BString periodStr = text.String() + periodPos + 7;
-			indicator.period = atoi(periodStr.String());
-		}
-
-		recipe.indicators.push_back(indicator);
-	}
-
-	// 6. Entry conditions - Parse from list view items
+	// 6. Entry conditions - Use structured data
 	recipe.entryConditions.logic = "AND";  // Default AND logic
-	for (int32 i = 0; i < entryConditionsListView->CountItems(); i++) {
-		BStringItem* item = dynamic_cast<BStringItem*>(entryConditionsListView->ItemAt(i));
-		if (!item) continue;
+	recipe.entryConditions.rules = currentEntryRules;
 
-		// Parse rule string: "rsi < 30"
-		BString text(item->Text());
-		BString indicatorName, operatorStr;
-		double value = 0.0;
-
-		// Simple tokenization (split by spaces)
-		const char* str = text.String();
-		std::istringstream iss(str);
-		std::string ind, op, val;
-		if (iss >> ind >> op >> val) {
-			TradingRule rule;
-			rule.indicator = ind;
-			rule.operatorStr = op;
-			try {
-				rule.value = std::stod(val);
-			} catch (const std::exception& e) {
-				LOG_WARNING("Invalid numeric value in entry condition: " + val);
-				rule.value = 0.0;
-			}
-			recipe.entryConditions.rules.push_back(rule);
-		}
-	}
-
-	// 7. Exit conditions - Parse from list view items
+	// 7. Exit conditions - Use structured data
 	recipe.exitConditions.logic = "OR";  // Default OR logic
-	for (int32 i = 0; i < exitConditionsListView->CountItems(); i++) {
-		BStringItem* item = dynamic_cast<BStringItem*>(exitConditionsListView->ItemAt(i));
-		if (!item) continue;
-
-		// Parse rule string: "rsi > 70"
-		BString text(item->Text());
-
-		const char* str = text.String();
-		std::istringstream iss(str);
-		std::string ind, op, val;
-		if (iss >> ind >> op >> val) {
-			TradingRule rule;
-			rule.indicator = ind;
-			rule.operatorStr = op;
-			try {
-				rule.value = std::stod(val);
-			} catch (const std::exception& e) {
-				LOG_WARNING("Invalid numeric value in exit condition: " + val);
-				rule.value = 0.0;
-			}
-			recipe.exitConditions.rules.push_back(rule);
-		}
-	}
+	recipe.exitConditions.rules = currentExitRules;
 
 	// 8. Validate
 	if (recipe.indicators.empty()) {
