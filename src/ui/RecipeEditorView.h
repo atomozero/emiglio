@@ -57,6 +57,10 @@ private:
 	std::string FormatIndicator(const IndicatorConfig& indicator);
 	std::string FormatRule(const TradingRule& rule);
 
+	// Helper functions for parsing display strings to structured data
+	IndicatorConfig ParseIndicatorString(const std::string& text);
+	TradingRule ParseRuleString(const std::string& text);
+
 	// UI Components - Left panel (recipe list)
 	BListView* recipeListView;
 	BScrollView* recipeListScroll;

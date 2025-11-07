@@ -280,6 +280,10 @@ void RecipeEditorView::MessageReceived(BMessage* message) {
 		case MSG_INDICATOR_ADDED: {
 			const char* indicator;
 			if (message->FindString("indicator", &indicator) == B_OK) {
+				// Parse and store structured data
+				IndicatorConfig config = ParseIndicatorString(indicator);
+				currentIndicators.push_back(config);
+
 				indicatorsListView->AddItem(new BStringItem(indicator));
 				statusLabel->SetText("Indicator added");
 			}
@@ -289,6 +293,10 @@ void RecipeEditorView::MessageReceived(BMessage* message) {
 		case MSG_ENTRY_CONDITION_ADDED: {
 			const char* condition;
 			if (message->FindString("condition", &condition) == B_OK) {
+				// Parse and store structured data
+				TradingRule rule = ParseRuleString(condition);
+				currentEntryRules.push_back(rule);
+
 				entryConditionsListView->AddItem(new BStringItem(condition));
 				statusLabel->SetText("Entry condition added");
 			}
@@ -298,6 +306,10 @@ void RecipeEditorView::MessageReceived(BMessage* message) {
 		case MSG_EXIT_CONDITION_ADDED: {
 			const char* condition;
 			if (message->FindString("condition", &condition) == B_OK) {
+				// Parse and store structured data
+				TradingRule rule = ParseRuleString(condition);
+				currentExitRules.push_back(rule);
+
 				exitConditionsListView->AddItem(new BStringItem(condition));
 				statusLabel->SetText("Exit condition added");
 			}
@@ -582,6 +594,10 @@ void RecipeEditorView::RemoveIndicator() {
 	int32 index = indicatorsListView->CurrentSelection();
 	if (index >= 0) {
 		delete indicatorsListView->RemoveItem(index);
+		// Also remove from structured data
+		if (index < static_cast<int32>(currentIndicators.size())) {
+			currentIndicators.erase(currentIndicators.begin() + index);
+		}
 		statusLabel->SetText("Indicator removed");
 	}
 }
@@ -599,6 +615,10 @@ void RecipeEditorView::RemoveEntryCondition() {
 	int32 index = entryConditionsListView->CurrentSelection();
 	if (index >= 0) {
 		delete entryConditionsListView->RemoveItem(index);
+		// Also remove from structured data
+		if (index < static_cast<int32>(currentEntryRules.size())) {
+			currentEntryRules.erase(currentEntryRules.begin() + index);
+		}
 		statusLabel->SetText("Entry condition removed");
 	}
 }
@@ -615,6 +635,10 @@ void RecipeEditorView::RemoveExitCondition() {
 	int32 index = exitConditionsListView->CurrentSelection();
 	if (index >= 0) {
 		delete exitConditionsListView->RemoveItem(index);
+		// Also remove from structured data
+		if (index < static_cast<int32>(currentExitRules.size())) {
+			currentExitRules.erase(currentExitRules.begin() + index);
+		}
 		statusLabel->SetText("Exit condition removed");
 	}
 }
@@ -745,6 +769,81 @@ std::string RecipeEditorView::FormatRule(const TradingRule& rule) {
 		result += std::to_string(rule.value);
 	}
 	return result;
+}
+
+IndicatorConfig RecipeEditorView::ParseIndicatorString(const std::string& text) {
+	IndicatorConfig indicator;
+	indicator.period = 14; // Default
+
+	// Parse format: "rsi(period=14, oversold=30)"
+	size_t openParen = text.find("(");
+	if (openParen == std::string::npos) {
+		indicator.name = text;
+		return indicator;
+	}
+
+	indicator.name = text.substr(0, openParen);
+
+	// Extract parameters
+	size_t closeParen = text.find(")", openParen);
+	if (closeParen == std::string::npos) return indicator;
+
+	std::string params = text.substr(openParen + 1, closeParen - openParen - 1);
+	std::istringstream iss(params);
+	std::string token;
+
+	while (std::getline(iss, token, ',')) {
+		// Trim whitespace
+		size_t start = token.find_first_not_of(" \t");
+		size_t end = token.find_last_not_of(" \t");
+		if (start == std::string::npos) continue;
+		token = token.substr(start, end - start + 1);
+
+		// Parse key=value
+		size_t eq = token.find("=");
+		if (eq == std::string::npos) continue;
+
+		std::string key = token.substr(0, eq);
+		std::string value = token.substr(eq + 1);
+
+		if (key == "period") {
+			indicator.period = std::atoi(value.c_str());
+		} else {
+			try {
+				indicator.params[key] = std::stod(value);
+			} catch (const std::exception& e) {
+				LOG_WARNING("Invalid parameter value: " + key + "=" + value);
+			}
+		}
+	}
+
+	return indicator;
+}
+
+TradingRule RecipeEditorView::ParseRuleString(const std::string& text) {
+	TradingRule rule;
+	rule.value = 0.0;
+
+	// Parse format: "rsi < 30" or "sma crosses_above ema"
+	std::istringstream iss(text);
+	std::string ind, op, val;
+
+	if (iss >> ind >> op >> val) {
+		rule.indicator = ind;
+		rule.operatorStr = op;
+
+		// Check if value is numeric or another indicator
+		try {
+			rule.value = std::stod(val);
+			rule.compareWith = "";
+		} catch (const std::exception&) {
+			// Not numeric, must be comparing with another indicator
+			rule.compareWith = val;
+			rule.value = 0.0;
+		}
+	}
+
+	return rule;
 }
 
 } // namespace UI
