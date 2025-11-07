@@ -61,6 +61,9 @@ private:
 	IndicatorConfig ParseIndicatorString(const std::string& text);
 	TradingRule ParseRuleString(const std::string& text);
 
+	// Helper function for recipe validation
+	std::vector<std::string> ValidateRecipe(const Recipe& recipe);
+
 	// UI Components - Left panel (recipe list)
 	BListView* recipeListView;
 	BScrollView* recipeListScroll;

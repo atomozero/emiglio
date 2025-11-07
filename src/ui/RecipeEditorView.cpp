@@ -440,18 +440,9 @@ void RecipeEditorView::SaveRecipe() {
 	recipe.exitConditions.rules = currentExitRules;
 
 	// 8. Validate
-	if (recipe.indicators.empty()) {
-		ShowError("At least one indicator is required");
-		return;
-	}
-
-	if (recipe.entryConditions.rules.empty()) {
-		ShowError("At least one entry condition is required");
-		return;
-	}
-
-	if (recipe.exitConditions.rules.empty()) {
-		ShowError("At least one exit condition is required");
+	std::vector<std::string> validationErrors = ValidateRecipe(recipe);
+	if (!validationErrors.empty()) {
+		ShowErrorList("Validation Errors", validationErrors);
 		return;
 	}
 
@@ -775,6 +766,32 @@ TradingRule RecipeEditorView::ParseRuleString(const std::string& text) {
 	}
 
 	return rule;
+}
+
+std::vector<std::string> RecipeEditorView::ValidateRecipe(const Recipe& recipe) {
+	std::vector<std::string> errors;
+
+	if (recipe.name.empty()) {
+		errors.push_back("Recipe name is required");
+	}
+
+	if (recipe.market.symbol.empty()) {
+		errors.push_back("Symbol is required");
+	}
+
+	if (recipe.indicators.empty()) {
+		errors.push_back("At least one indicator is required");
+	}
+
+	if (recipe.entryConditions.rules.empty()) {
+		errors.push_back("At least one entry condition is required");
+	}
+
+	if (recipe.exitConditions.rules.empty()) {
+		errors.push_back("At least one exit condition is required");
+	}
+
+	return errors;
 }
 
 } // namespace UI
