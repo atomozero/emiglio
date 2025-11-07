@@ -53,6 +53,10 @@ private:
 	void ClearListView(BListView* listView);
 	void RemoveFromListView(BListView* listView, const char* itemType);
 
+	// Helper functions for formatting structured data to display strings
+	std::string FormatIndicator(const IndicatorConfig& indicator);
+	std::string FormatRule(const TradingRule& rule);
+
 	// UI Components - Left panel (recipe list)
 	BListView* recipeListView;
 	BScrollView* recipeListScroll;

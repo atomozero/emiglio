@@ -734,5 +734,24 @@ void RecipeEditorView::RemoveFromListView(BListView* listView, const char* itemT
 	}
 }
 
+std::string RecipeEditorView::FormatIndicator(const IndicatorConfig& indicator) {
+	std::string result = indicator.name + "(period=" + std::to_string(indicator.period);
+	for (const auto& param : indicator.params) {
+		result += ", " + param.first + "=" + std::to_string(param.second);
+	}
+	result += ")";
+	return result;
+}
+
+std::string RecipeEditorView::FormatRule(const TradingRule& rule) {
+	std::string result = rule.indicator + " " + rule.operatorStr + " ";
+	if (!rule.compareWith.empty()) {
+		result += rule.compareWith;
+	} else {
+		result += std::to_string(rule.value);
+	}
+	return result;
+}
+
 } // namespace UI
 } // namespace Emiglio
