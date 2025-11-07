@@ -315,10 +315,7 @@ void RecipeEditorView::LoadRecipe(const std::string& path) {
 	Recipe recipe;
 
 	if (!loader.loadFromFile(path, recipe)) {
-		BAlert* alert = new BAlert("Error", "Failed to load recipe",
-		                           "OK", nullptr, nullptr,
-		                           B_WIDTH_AS_USUAL, B_STOP_ALERT);
-		alert->Go();
+		ShowError("Failed to load recipe");
 		return;
 	}
 
@@ -400,10 +397,7 @@ void RecipeEditorView::SaveRecipe() {
 	recipe.description = descriptionControl->Text();
 
 	if (recipe.name.empty()) {
-		BAlert* alert = new BAlert("Error", "Recipe name is required",
-		                           "OK", nullptr, nullptr,
-		                           B_WIDTH_AS_USUAL, B_STOP_ALERT);
-		alert->Go();
+		ShowError("Recipe name is required");
 		return;
 	}
 
@@ -413,10 +407,7 @@ void RecipeEditorView::SaveRecipe() {
 
 	recipe.market.symbol = symbolControl->Text();
 	if (recipe.market.symbol.empty()) {
-		BAlert* alert = new BAlert("Error", "Symbol is required",
-		                           "OK", nullptr, nullptr,
-		                           B_WIDTH_AS_USUAL, B_STOP_ALERT);
-		alert->Go();
+		ShowError("Symbol is required");
 		return;
 	}
 
@@ -508,26 +499,17 @@ void RecipeEditorView::SaveRecipe() {
 
 	// 8. Validate
 	if (recipe.indicators.empty()) {
-		BAlert* alert = new BAlert("Error", "At least one indicator is required",
-		                           "OK", nullptr, nullptr,
-		                           B_WIDTH_AS_USUAL, B_STOP_ALERT);
-		alert->Go();
+		ShowError("At least one indicator is required");
 		return;
 	}
 
 	if (recipe.entryConditions.rules.empty()) {
-		BAlert* alert = new BAlert("Error", "At least one entry condition is required",
-		                           "OK", nullptr, nullptr,
-		                           B_WIDTH_AS_USUAL, B_STOP_ALERT);
-		alert->Go();
+		ShowError("At least one entry condition is required");
 		return;
 	}
 
 	if (recipe.exitConditions.rules.empty()) {
-		BAlert* alert = new BAlert("Error", "At least one exit condition is required",
-		                           "OK", nullptr, nullptr,
-		                           B_WIDTH_AS_USUAL, B_STOP_ALERT);
-		alert->Go();
+		ShowError("At least one exit condition is required");
 		return;
 	}
 
@@ -540,11 +522,10 @@ void RecipeEditorView::SaveRecipe() {
 		// Check if file exists
 		BEntry entry(savePath.c_str());
 		if (entry.Exists()) {
-			BAlert* alert = new BAlert("Confirm",
-			                           "Recipe with this name already exists. Overwrite?",
-			                           "Cancel", "Overwrite", nullptr,
-			                           B_WIDTH_AS_USUAL, B_WARNING_ALERT);
-			if (alert->Go() == 0) return;  // Cancel
+			if (ShowConfirm("Recipe with this name already exists. Overwrite?",
+			               "Cancel", "Overwrite") == 0) {
+				return;  // Cancel
+			}
 		}
 	} else {
 		// Editing existing recipe
@@ -560,18 +541,10 @@ void RecipeEditorView::SaveRecipe() {
 		// Refresh recipe list
 		LoadRecipeList();
 
-		BAlert* alert = new BAlert("Success",
-		                           "Recipe saved successfully!",
-		                           "OK", nullptr, nullptr,
-		                           B_WIDTH_AS_USUAL, B_INFO_ALERT);
-		alert->Go();
+		ShowInfo("Recipe saved successfully!");
 	} else {
 		std::string error = "Failed to save recipe: " + loader.getLastError();
-		BAlert* alert = new BAlert("Error",
-		                           error.c_str(),
-		                           "OK", nullptr, nullptr,
-		                           B_WIDTH_AS_USUAL, B_STOP_ALERT);
-		alert->Go();
+		ShowError(error.c_str());
 		statusLabel->SetText("Save failed");
 	}
 }
@@ -584,27 +557,17 @@ void RecipeEditorView::CreateNewRecipe() {
 
 void RecipeEditorView::DeleteRecipe() {
 	if (currentRecipePath.empty()) {
-		BAlert* alert = new BAlert("Error", "No recipe selected",
-		                           "OK", nullptr, nullptr,
-		                           B_WIDTH_AS_USUAL, B_STOP_ALERT);
-		alert->Go();
+		ShowError("No recipe selected");
 		return;
 	}
 
-	BAlert* alert = new BAlert("Confirm",
-	                           "Are you sure you want to delete this recipe?",
-	                           "Cancel", "Delete", nullptr,
-	                           B_WIDTH_AS_USUAL, B_WARNING_ALERT);
-	if (alert->Go() == 1) { // Delete button
+	if (ShowConfirm("Are you sure you want to delete this recipe?", "Cancel", "Delete") == 1) { // Delete button
 		if (remove(currentRecipePath.c_str()) == 0) {
 			statusLabel->SetText("Recipe deleted");
 			LoadRecipeList();
 			ClearForm();
 		} else {
-			BAlert* errorAlert = new BAlert("Error", "Failed to delete recipe",
-			                                 "OK", nullptr, nullptr,
-			                                 B_WIDTH_AS_USUAL, B_STOP_ALERT);
-			errorAlert->Go();
+			ShowError("Failed to delete recipe");
 		}
 	}
 }
@@ -682,23 +645,10 @@ void RecipeEditorView::ValidateAndShowErrors() {
 	}
 
 	if (errors.empty()) {
-		BAlert* alert = new BAlert("Validation",
-		                           "Recipe is valid!",
-		                           "OK", nullptr, nullptr,
-		                           B_WIDTH_AS_USUAL, B_INFO_ALERT);
-		alert->Go();
+		ShowInfo("Recipe is valid!");
 		statusLabel->SetText("Valid");
 	} else {
-		std::string message = "Validation errors:\n\n";
-		for (const auto& error : errors) {
-			message += error + "\n";
-		}
-
-		BAlert* alert = new BAlert("Validation Errors",
-		                           message.c_str(),
-		                           "OK", nullptr, nullptr,
-		                           B_WIDTH_AS_USUAL, B_STOP_ALERT);
-		alert->Go();
+		ShowErrorList("Validation Errors", errors);
 		statusLabel->SetText("Invalid");
 	}
 }
