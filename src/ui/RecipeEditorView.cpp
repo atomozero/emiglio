@@ -675,6 +675,11 @@ void RecipeEditorView::ClearForm() {
 	ClearListView(entryConditionsListView);
 	ClearListView(exitConditionsListView);
 
+	// Clear structured data
+	currentIndicators.clear();
+	currentEntryRules.clear();
+	currentExitRules.clear();
+
 	currentRecipePath = "";
 	statusLabel->SetText("Ready");
 }
