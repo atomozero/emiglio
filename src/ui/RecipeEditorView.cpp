@@ -471,7 +471,12 @@ void RecipeEditorView::SaveRecipe() {
 			TradingRule rule;
 			rule.indicator = ind;
 			rule.operatorStr = op;
-			rule.value = std::stod(val);
+			try {
+				rule.value = std::stod(val);
+			} catch (const std::exception& e) {
+				LOG_WARNING("Invalid numeric value in entry condition: " + val);
+				rule.value = 0.0;
+			}
 			recipe.entryConditions.rules.push_back(rule);
 		}
 	}
@@ -492,7 +497,12 @@ void RecipeEditorView::SaveRecipe() {
 			TradingRule rule;
 			rule.indicator = ind;
 			rule.operatorStr = op;
-			rule.value = std::stod(val);
+			try {
+				rule.value = std::stod(val);
+			} catch (const std::exception& e) {
+				LOG_WARNING("Invalid numeric value in exit condition: " + val);
+				rule.value = 0.0;
+			}
 			recipe.exitConditions.rules.push_back(rule);
 		}
 	}
