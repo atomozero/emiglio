@@ -102,3 +102,6 @@ node_modules/
 # Documentation temp files
 docs/.*.md.swp
 docs/*~
+
+# Claude Code local settings
+.claude/settings.local.json
