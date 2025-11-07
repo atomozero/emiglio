@@ -719,5 +719,60 @@ void RecipeEditorView::ClearForm() {
 	statusLabel->SetText("Ready");
 }
 
+// Helper functions for UI dialogs
+void RecipeEditorView::ShowError(const char* message) {
+	BAlert* alert = new BAlert("Error", message, "OK", nullptr, nullptr,
+	                           B_WIDTH_AS_USUAL, B_STOP_ALERT);
+	alert->Go();
+	delete alert;
+}
+
+void RecipeEditorView::ShowInfo(const char* message) {
+	BAlert* alert = new BAlert("Information", message, "OK", nullptr, nullptr,
+	                           B_WIDTH_AS_USUAL, B_INFO_ALERT);
+	alert->Go();
+	delete alert;
+}
+
+int32 RecipeEditorView::ShowConfirm(const char* message,
+                                     const char* button0,
+                                     const char* button1) {
+	BAlert* alert = new BAlert("Confirm", message, button0, button1, nullptr,
+	                           B_WIDTH_AS_USUAL, B_WARNING_ALERT);
+	int32 result = alert->Go();
+	delete alert;
+	return result;
+}
+
+void RecipeEditorView::ShowErrorList(const char* title,
+                                      const std::vector<std::string>& errors) {
+	std::string message;
+	for (const auto& error : errors) {
+		message += error + "\n";
+	}
+	ShowError(message.c_str());
+}
+
+// Helper functions for list management
+void RecipeEditorView::ClearListView(BListView* listView) {
+	// Delete all items before clearing
+	for (int32 i = 0; i < listView->CountItems(); i++) {
+		delete listView->ItemAt(i);
+	}
+	listView->MakeEmpty();
+}
+
+void RecipeEditorView::RemoveFromListView(BListView* listView, const char* itemType) {
+	int32 index = listView->CurrentSelection();
+	if (index >= 0) {
+		delete listView->RemoveItem(index);
+		BString status;
+		status << itemType << " removed";
+		statusLabel->SetText(status);
+	} else {
+		ShowError("No item selected");
+	}
+}
+
 } // namespace UI
 } // namespace Emiglio

@@ -43,6 +43,14 @@ private:
 	void ValidateAndShowErrors();
 	void ClearForm();
 
+	// Helper functions for UI dialogs and list management
+	void ShowError(const char* message);
+	void ShowInfo(const char* message);
+	int32 ShowConfirm(const char* message, const char* button0, const char* button1);
+	void ShowErrorList(const char* title, const std::vector<std::string>& errors);
+	void ClearListView(BListView* listView);
+	void RemoveFromListView(BListView* listView, const char* itemType);
+
 	// UI Components - Left panel (recipe list)
 	BListView* recipeListView;
 	BScrollView* recipeListScroll;
