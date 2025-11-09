@@ -1,4 +1,6 @@
 #include "RecipeEditorView.h"
+#include "AddIndicatorDialog.h"
+#include "AddConditionDialog.h"
 #include "../strategy/RecipeLoader.h"
 #include "../utils/Logger.h"
 
@@ -18,6 +20,7 @@
 #include <Entry.h>
 #include <Path.h>
 #include <File.h>
+#include <Messenger.h>
 
 #include <iostream>
 #include <fstream>
@@ -194,7 +197,7 @@ void RecipeEditorView::BuildLayout() {
 }
 
 void RecipeEditorView::LoadRecipeList() {
-	recipeListView->MakeEmpty();
+	ClearListView(recipeListView);
 	availableRecipes.clear();
 
 	BDirectory dir("/boot/home/Emiglio/recipes");
@@ -274,6 +277,45 @@ void RecipeEditorView::MessageReceived(BMessage* message) {
 			RemoveExitCondition();
 			break;
 
+		case MSG_INDICATOR_ADDED: {
+			const char* indicator;
+			if (message->FindString("indicator", &indicator) == B_OK) {
+				// Parse and store structured data
+				IndicatorConfig config = ParseIndicatorString(indicator);
+				currentIndicators.push_back(config);
+
+				indicatorsListView->AddItem(new BStringItem(indicator));
+				statusLabel->SetText("Indicator added");
+			}
+			break;
+		}
+
+		case MSG_ENTRY_CONDITION_ADDED: {
+			const char* condition;
+			if (message->FindString("condition", &condition) == B_OK) {
+				// Parse and store structured data
+				TradingRule rule = ParseRuleString(condition);
+				currentEntryRules.push_back(rule);
+
+				entryConditionsListView->AddItem(new BStringItem(condition));
+				statusLabel->SetText("Entry condition added");
+			}
+			break;
+		}
+
+		case MSG_EXIT_CONDITION_ADDED: {
+			const char* condition;
+			if (message->FindString("condition", &condition) == B_OK) {
+				// Parse and store structured data
+				TradingRule rule = ParseRuleString(condition);
+				currentExitRules.push_back(rule);
+
+				exitConditionsListView->AddItem(new BStringItem(condition));
+				statusLabel->SetText("Exit condition added");
+			}
+			break;
+		}
+
 		default:
 			BView::MessageReceived(message);
 			break;
@@ -285,10 +327,7 @@ void RecipeEditorView::LoadRecipe(const std::string& path) {
 	Recipe recipe;
 
 	if (!loader.loadFromFile(path, recipe)) {
-		BAlert* alert = new BAlert("Error", "Failed to load recipe",
-		                           "OK", nullptr, nullptr,
-		                           B_WIDTH_AS_USUAL, B_STOP_ALERT);
-		alert->Go();
+		ShowError("Failed to load recipe");
 		return;
 	}
 
@@ -317,44 +356,33 @@ void RecipeEditorView::LoadRecipe(const std::string& path) {
 	positionSizeControl->SetText(buffer);
 
 	// Load indicators
-	indicatorsListView->MakeEmpty();
+	ClearListView(indicatorsListView);
+	currentIndicators.clear();
 	for (size_t i = 0; i < recipe.indicators.size(); i++) {
 		const auto& indicator = recipe.indicators[i];
-		BString text;
-		text << indicator.name.c_str() << "(period=" << indicator.period;
-		for (auto pit = indicator.params.begin(); pit != indicator.params.end(); ++pit) {
-			text << ", " << pit->first.c_str() << "=" << pit->second;
-		}
-		text << ")";
-		indicatorsListView->AddItem(new BStringItem(text));
+		currentIndicators.push_back(indicator);
+		std::string text = FormatIndicator(indicator);
+		indicatorsListView->AddItem(new BStringItem(text.c_str()));
 	}
 
 	// Load entry conditions
-	entryConditionsListView->MakeEmpty();
+	ClearListView(entryConditionsListView);
+	currentEntryRules.clear();
 	for (size_t i = 0; i < recipe.entryConditions.rules.size(); i++) {
 		const auto& rule = recipe.entryConditions.rules[i];
-		BString text;
-		text << rule.indicator.c_str() << " " << rule.operatorStr.c_str() << " ";
-		if (!rule.compareWith.empty()) {
-			text << rule.compareWith.c_str();
-		} else {
-			text << rule.value;
-		}
-		entryConditionsListView->AddItem(new BStringItem(text));
+		currentEntryRules.push_back(rule);
+		std::string text = FormatRule(rule);
+		entryConditionsListView->AddItem(new BStringItem(text.c_str()));
 	}
 
 	// Load exit conditions
-	exitConditionsListView->MakeEmpty();
+	ClearListView(exitConditionsListView);
+	currentExitRules.clear();
 	for (size_t i = 0; i < recipe.exitConditions.rules.size(); i++) {
 		const auto& rule = recipe.exitConditions.rules[i];
-		BString text;
-		text << rule.indicator.c_str() << " " << rule.operatorStr.c_str() << " ";
-		if (!rule.compareWith.empty()) {
-			text << rule.compareWith.c_str();
-		} else {
-			text << rule.value;
-		}
-		exitConditionsListView->AddItem(new BStringItem(text));
+		currentExitRules.push_back(rule);
+		std::string text = FormatRule(rule);
+		exitConditionsListView->AddItem(new BStringItem(text.c_str()));
 	}
 
 	statusLabel->SetText("Recipe loaded");
@@ -362,18 +390,96 @@ void RecipeEditorView::LoadRecipe(const std::string& path) {
 }
 
 void RecipeEditorView::SaveRecipe() {
-	// For now, show a message that saving is not yet implemented
-	// Full implementation would require building a Recipe object from form data
-	// and writing it as JSON
+	// Build Recipe object from form data
+	Recipe recipe;
 
-	BAlert* alert = new BAlert("Not Implemented",
-	                           "Recipe saving is not yet fully implemented.\n"
-	                           "This would serialize the form data to JSON format.",
-	                           "OK", nullptr, nullptr,
-	                           B_WIDTH_AS_USUAL, B_INFO_ALERT);
-	alert->Go();
+	// 1. Basic metadata
+	recipe.name = nameControl->Text();
+	recipe.description = descriptionControl->Text();
 
-	statusLabel->SetText("Save not yet implemented");
+	if (recipe.name.empty()) {
+		ShowError("Recipe name is required");
+		return;
+	}
+
+	// 2. Market configuration
+	BMenuItem* item = exchangeMenu->Menu()->FindMarked();
+	recipe.market.exchange = item ? item->Label() : "binance";
+
+	recipe.market.symbol = symbolControl->Text();
+	if (recipe.market.symbol.empty()) {
+		ShowError("Symbol is required");
+		return;
+	}
+
+	item = timeframeMenu->Menu()->FindMarked();
+	recipe.market.timeframe = item ? item->Label() : "1h";
+
+	// 3. Capital configuration (use defaults for now)
+	recipe.capital.initial = 10000.0;  // Default $10k
+	recipe.capital.positionSizePercent = atof(positionSizeControl->Text());
+	if (recipe.capital.positionSizePercent <= 0 || recipe.capital.positionSizePercent > 100) {
+		recipe.capital.positionSizePercent = 95.0;
+	}
+
+	// 4. Risk management
+	recipe.risk.stopLossPercent = atof(stopLossControl->Text());
+	recipe.risk.takeProfitPercent = atof(takeProfitControl->Text());
+	recipe.risk.maxDailyLossPercent = 5.0;  // Default 5%
+	recipe.risk.maxOpenPositions = 1;       // Default 1
+
+	// 5. Indicators - Use structured data
+	recipe.indicators = currentIndicators;
+
+	// 6. Entry conditions - Use structured data
+	recipe.entryConditions.logic = "AND";  // Default AND logic
+	recipe.entryConditions.rules = currentEntryRules;
+
+	// 7. Exit conditions - Use structured data
+	recipe.exitConditions.logic = "OR";  // Default OR logic
+	recipe.exitConditions.rules = currentExitRules;
+
+	// 8. Validate
+	std::vector<std::string> validationErrors = ValidateRecipe(recipe);
+	if (!validationErrors.empty()) {
+		ShowErrorList("Validation Errors", validationErrors);
+		return;
+	}
+
+	// 9. Determine file path
+	std::string savePath;
+	if (currentRecipePath.empty()) {
+		// New recipe - create new file
+		savePath = "/boot/home/Emiglio/recipes/" + recipe.name + ".json";
+
+		// Check if file exists
+		BEntry entry(savePath.c_str());
+		if (entry.Exists()) {
+			if (ShowConfirm("Recipe with this name already exists. Overwrite?",
+			               "Cancel", "Overwrite") == 0) {
+				return;  // Cancel
+			}
+		}
+	} else {
+		// Editing existing recipe
+		savePath = currentRecipePath;
+	}
+
+	// 10. Save using RecipeLoader
+	RecipeLoader loader;
+	if (loader.saveToFile(savePath, recipe)) {
+		statusLabel->SetText("Recipe saved successfully");
+		currentRecipePath = savePath;
+
+		// Refresh recipe list
+		LoadRecipeList();
+
+		ShowInfo("Recipe saved successfully!");
+	} else {
+		std::string error = "Failed to save recipe: " + loader.getLastError();
+		ShowError(error.c_str());
+		statusLabel->SetText("Save failed");
+	}
 }
 
 void RecipeEditorView::CreateNewRecipe() {
@@ -384,80 +490,77 @@ void RecipeEditorView::CreateNewRecipe() {
 
 void RecipeEditorView::DeleteRecipe() {
 	if (currentRecipePath.empty()) {
-		BAlert* alert = new BAlert("Error", "No recipe selected",
-		                           "OK", nullptr, nullptr,
-		                           B_WIDTH_AS_USUAL, B_STOP_ALERT);
-		alert->Go();
+		ShowError("No recipe selected");
 		return;
 	}
 
-	BAlert* alert = new BAlert("Confirm",
-	                           "Are you sure you want to delete this recipe?",
-	                           "Cancel", "Delete", nullptr,
-	                           B_WIDTH_AS_USUAL, B_WARNING_ALERT);
-	if (alert->Go() == 1) { // Delete button
+	if (ShowConfirm("Are you sure you want to delete this recipe?", "Cancel", "Delete") == 1) { // Delete button
 		if (remove(currentRecipePath.c_str()) == 0) {
 			statusLabel->SetText("Recipe deleted");
 			LoadRecipeList();
 			ClearForm();
 		} else {
-			BAlert* errorAlert = new BAlert("Error", "Failed to delete recipe",
-			                                 "OK", nullptr, nullptr,
-			                                 B_WIDTH_AS_USUAL, B_STOP_ALERT);
-			errorAlert->Go();
+			ShowError("Failed to delete recipe");
 		}
 	}
 }
 
 void RecipeEditorView::AddIndicator() {
-	// Simple dialog for adding indicator
-	// Full implementation would use a custom dialog
-	BAlert* alert = new BAlert("Add Indicator",
-	                           "Adding indicators via dialog not yet implemented.\n"
-	                           "Edit the JSON file directly for now.",
-	                           "OK", nullptr, nullptr,
-	                           B_WIDTH_AS_USUAL, B_INFO_ALERT);
-	alert->Go();
+	// Open dialog for adding indicator
+	BMessenger messenger(this);
+	AddIndicatorDialog* dialog = new AddIndicatorDialog(messenger);
+	dialog->Show();
 }
 
 void RecipeEditorView::RemoveIndicator() {
 	int32 index = indicatorsListView->CurrentSelection();
 	if (index >= 0) {
 		delete indicatorsListView->RemoveItem(index);
+		// Also remove from structured data
+		if (index < static_cast<int32>(currentIndicators.size())) {
+			currentIndicators.erase(currentIndicators.begin() + index);
+		}
 		statusLabel->SetText("Indicator removed");
 	}
 }
 
 void RecipeEditorView::AddEntryCondition() {
-	BAlert* alert = new BAlert("Add Condition",
-	                           "Adding conditions via dialog not yet implemented.\n"
-	                           "Edit the JSON file directly for now.",
-	                           "OK", nullptr, nullptr,
-	                           B_WIDTH_AS_USUAL, B_INFO_ALERT);
-	alert->Go();
+	// Open dialog for adding entry condition
+	BMessage msg(MSG_ENTRY_CONDITION_ADDED);
+	BMessenger messenger(this);
+	AddConditionDialog* dialog = new AddConditionDialog(messenger, "Add Entry Condition");
+	dialog->SetMessageWhat(MSG_ENTRY_CONDITION_ADDED);
+	dialog->Show();
 }
 
 void RecipeEditorView::RemoveEntryCondition() {
 	int32 index = entryConditionsListView->CurrentSelection();
 	if (index >= 0) {
 		delete entryConditionsListView->RemoveItem(index);
+		// Also remove from structured data
+		if (index < static_cast<int32>(currentEntryRules.size())) {
+			currentEntryRules.erase(currentEntryRules.begin() + index);
+		}
 		statusLabel->SetText("Entry condition removed");
 	}
 }
 
 void RecipeEditorView::AddExitCondition() {
-	BAlert* alert = new BAlert("Add Condition",
-	                           "Adding conditions via dialog not yet implemented.\n"
-	                           "Edit the JSON file directly for now.",
-	                           "OK", nullptr, nullptr,
-	                           B_WIDTH_AS_USUAL, B_INFO_ALERT);
-	alert->Go();
+	// Open dialog for adding exit condition
+	BMessenger messenger(this);
+	AddConditionDialog* dialog = new AddConditionDialog(messenger, "Add Exit Condition");
+	dialog->SetMessageWhat(MSG_EXIT_CONDITION_ADDED);
+	dialog->Show();
 }
 
 void RecipeEditorView::RemoveExitCondition() {
 	int32 index = exitConditionsListView->CurrentSelection();
 	if (index >= 0) {
 		delete exitConditionsListView->RemoveItem(index);
+		// Also remove from structured data
+		if (index < static_cast<int32>(currentExitRules.size())) {
+			currentExitRules.erase(currentExitRules.begin() + index);
+		}
 		statusLabel->SetText("Exit condition removed");
 	}
 }
@@ -487,23 +590,10 @@ void RecipeEditorView::ValidateAndShowErrors() {
 	}
 
 	if (errors.empty()) {
-		BAlert* alert = new BAlert("Validation",
-		                           "Recipe is valid!",
-		                           "OK", nullptr, nullptr,
-		                           B_WIDTH_AS_USUAL, B_INFO_ALERT);
-		alert->Go();
+		ShowInfo("Recipe is valid!");
 		statusLabel->SetText("Valid");
 	} else {
-		std::string message = "Validation errors:\n\n";
-		for (const auto& error : errors) {
-			message += error + "\n";
-		}
-
-		BAlert* alert = new BAlert("Validation Errors",
-		                           message.c_str(),
-		                           "OK", nullptr, nullptr,
-		                           B_WIDTH_AS_USUAL, B_STOP_ALERT);
-		alert->Go();
+		ShowErrorList("Validation Errors", errors);
 		statusLabel->SetText("Invalid");
 	}
 }
@@ -516,12 +606,192 @@ void RecipeEditorView::ClearForm() {
 	takeProfitControl->SetText("5.0");
 	positionSizeControl->SetText("95.0");
 
-	indicatorsListView->MakeEmpty();
-	entryConditionsListView->MakeEmpty();
-	exitConditionsListView->MakeEmpty();
+	ClearListView(indicatorsListView);
+	ClearListView(entryConditionsListView);
+	ClearListView(exitConditionsListView);
+
+	// Clear structured data
+	currentIndicators.clear();
+	currentEntryRules.clear();
+	currentExitRules.clear();
 
 	currentRecipePath = "";
 	statusLabel->SetText("Ready");
+}
+
+// Helper functions for UI dialogs
+void RecipeEditorView::ShowError(const char* message) {
+	BAlert* alert = new BAlert("Error", message, "OK", nullptr, nullptr,
+	                           B_WIDTH_AS_USUAL, B_STOP_ALERT);
+	alert->Go();
+	delete alert;
+}
+
+void RecipeEditorView::ShowInfo(const char* message) {
+	BAlert* alert = new BAlert("Information", message, "OK", nullptr, nullptr,
+	                           B_WIDTH_AS_USUAL, B_INFO_ALERT);
+	alert->Go();
+	delete alert;
+}
+
+int32 RecipeEditorView::ShowConfirm(const char* message,
+                                     const char* button0,
+                                     const char* button1) {
+	BAlert* alert = new BAlert("Confirm", message, button0, button1, nullptr,
+	                           B_WIDTH_AS_USUAL, B_WARNING_ALERT);
+	int32 result = alert->Go();
+	delete alert;
+	return result;
+}
+
+void RecipeEditorView::ShowErrorList(const char* title,
+                                      const std::vector<std::string>& errors) {
+	std::string message;
+	for (const auto& error : errors) {
+		message += error + "\n";
+	}
+	ShowError(message.c_str());
+}
+
+// Helper functions for list management
+void RecipeEditorView::ClearListView(BListView* listView) {
+	// Delete all items before clearing
+	for (int32 i = 0; i < listView->CountItems(); i++) {
+		delete listView->ItemAt(i);
+	}
+	listView->MakeEmpty();
+}
+
+void RecipeEditorView::RemoveFromListView(BListView* listView, const char* itemType) {
+	int32 index = listView->CurrentSelection();
+	if (index >= 0) {
+		delete listView->RemoveItem(index);
+		BString status;
+		status << itemType << " removed";
+		statusLabel->SetText(status);
+	} else {
+		ShowError("No item selected");
+	}
+}
+
+std::string RecipeEditorView::FormatIndicator(const IndicatorConfig& indicator) {
+	std::string result = indicator.name + "(period=" + std::to_string(indicator.period);
+	for (const auto& param : indicator.params) {
+		result += ", " + param.first + "=" + std::to_string(param.second);
+	}
+	result += ")";
+	return result;
+}
+
+std::string RecipeEditorView::FormatRule(const TradingRule& rule) {
+	std::string result = rule.indicator + " " + rule.operatorStr + " ";
+	if (!rule.compareWith.empty()) {
+		result += rule.compareWith;
+	} else {
+		result += std::to_string(rule.value);
+	}
+	return result;
+}
+
+IndicatorConfig RecipeEditorView::ParseIndicatorString(const std::string& text) {
+	IndicatorConfig indicator;
+	indicator.period = 14; // Default
+
+	// Parse format: "rsi(period=14, oversold=30)"
+	size_t openParen = text.find("(");
+	if (openParen == std::string::npos) {
+		indicator.name = text;
+		return indicator;
+	}
+
+	indicator.name = text.substr(0, openParen);
+
+	// Extract parameters
+	size_t closeParen = text.find(")", openParen);
+	if (closeParen == std::string::npos) return indicator;
+
+	std::string params = text.substr(openParen + 1, closeParen - openParen - 1);
+	std::istringstream iss(params);
+	std::string token;
+
+	while (std::getline(iss, token, ',')) {
+		// Trim whitespace
+		size_t start = token.find_first_not_of(" \t");
+		size_t end = token.find_last_not_of(" \t");
+		if (start == std::string::npos) continue;
+		token = token.substr(start, end - start + 1);
+
+		// Parse key=value
+		size_t eq = token.find("=");
+		if (eq == std::string::npos) continue;
+
+		std::string key = token.substr(0, eq);
+		std::string value = token.substr(eq + 1);
+
+		if (key == "period") {
+			indicator.period = std::atoi(value.c_str());
+		} else {
+			try {
+				indicator.params[key] = std::stod(value);
+			} catch (const std::exception& e) {
+				LOG_WARNING("Invalid parameter value: " + key + "=" + value);
+			}
+		}
+	}
+
+	return indicator;
+}
+
+TradingRule RecipeEditorView::ParseRuleString(const std::string& text) {
+	TradingRule rule;
+	rule.value = 0.0;
+
+	// Parse format: "rsi < 30" or "sma crosses_above ema"
+	std::istringstream iss(text);
+	std::string ind, op, val;
+
+	if (iss >> ind >> op >> val) {
+		rule.indicator = ind;
+		rule.operatorStr = op;
+
+		// Check if value is numeric or another indicator
+		try {
+			rule.value = std::stod(val);
+			rule.compareWith = "";
+		} catch (const std::exception&) {
+			// Not numeric, must be comparing with another indicator
+			rule.compareWith = val;
+			rule.value = 0.0;
+		}
+	}
+
+	return rule;
+}
+
+std::vector<std::string> RecipeEditorView::ValidateRecipe(const Recipe& recipe) {
+	std::vector<std::string> errors;
+
+	if (recipe.name.empty()) {
+		errors.push_back("Recipe name is required");
+	}
+
+	if (recipe.market.symbol.empty()) {
+		errors.push_back("Symbol is required");
+	}
+
+	if (recipe.indicators.empty()) {
+		errors.push_back("At least one indicator is required");
+	}
+
+	if (recipe.entryConditions.rules.empty()) {
+		errors.push_back("At least one entry condition is required");
+	}
+
+	if (recipe.exitConditions.rules.empty()) {
+		errors.push_back("At least one exit condition is required");
+	}
+
+	return errors;
 }
 
 } // namespace UI

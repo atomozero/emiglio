@@ -16,6 +16,8 @@ class BStringView;
 namespace Emiglio {
 
 struct Recipe; // Forward declaration
+struct IndicatorConfig; // Forward declaration
+struct TradingRule; // Forward declaration
 
 namespace UI {
 
@@ -42,6 +44,25 @@ private:
 	void RemoveExitCondition();
 	void ValidateAndShowErrors();
 	void ClearForm();
+
+	// Helper functions for UI dialogs and list management
+	void ShowError(const char* message);
+	void ShowInfo(const char* message);
+	int32 ShowConfirm(const char* message, const char* button0, const char* button1);
+	void ShowErrorList(const char* title, const std::vector<std::string>& errors);
+	void ClearListView(BListView* listView);
+	void RemoveFromListView(BListView* listView, const char* itemType);
+
+	// Helper functions for formatting structured data to display strings
+	std::string FormatIndicator(const IndicatorConfig& indicator);
+	std::string FormatRule(const TradingRule& rule);
+
+	// Helper functions for parsing display strings to structured data
+	IndicatorConfig ParseIndicatorString(const std::string& text);
+	TradingRule ParseRuleString(const std::string& text);
+
+	// Helper function for recipe validation
+	std::vector<std::string> ValidateRecipe(const Recipe& recipe);
 
 	// UI Components - Left panel (recipe list)
 	BListView* recipeListView;
@@ -91,6 +112,11 @@ private:
 	std::string currentRecipePath;
 	std::vector<std::string> availableRecipes;
 
+	// Structured data storage (to avoid string parsing fragility)
+	std::vector<IndicatorConfig> currentIndicators;
+	std::vector<TradingRule> currentEntryRules;
+	std::vector<TradingRule> currentExitRules;
+
 	// Message constants
 	enum {
 		MSG_RECIPE_SELECTED = 'rsel',
@@ -103,7 +129,9 @@ private:
 		MSG_ADD_ENTRY_CONDITION = 'aent',
 		MSG_REMOVE_ENTRY_CONDITION = 'rent',
 		MSG_ADD_EXIT_CONDITION = 'aexi',
-		MSG_REMOVE_EXIT_CONDITION = 'rexi'
+		MSG_REMOVE_EXIT_CONDITION = 'rexi',
+		MSG_INDICATOR_ADDED = 'iadd',
+		MSG_CONDITION_ADDED = 'cadd'
 	};
 };
 
